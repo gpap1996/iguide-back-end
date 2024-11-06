@@ -9,12 +9,7 @@ app.get("/", (c) => {
   });
 });
 
-app.get("/areas", async (c) => {
-  const res = await getAreas();
-  return c.json(res);
-});
-
-app.get("/areas/:id", async (c) => {
+app.get("/areas/:id?", async (c) => {
   const id = Number(c.req.param("id"));
   const res = await getAreas(id);
   return c.json(res);
