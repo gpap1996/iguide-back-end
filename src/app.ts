@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Hono } from "hono";
-import { findAreaById } from "./areaRepository";
+import { getAreas, createArea } from "./areaRepository";
 const app = new Hono();
 
 app.get("/", (c) => {
@@ -9,14 +9,21 @@ app.get("/", (c) => {
   });
 });
 
+app.get("/areas", async (c) => {
+  const res = await getAreas();
+  return c.json(res);
+});
+
 app.get("/areas/:id", async (c) => {
   const id = Number(c.req.param("id"));
-  const res = await findAreaById(id);
-  return c.text(`Area: ${res}`);
+  const res = await getAreas(id);
+  return c.json(res);
+});
 
-  return c.json({
-    msg: "TON HONO",
-  });
+app.post("/area", async (c) => {
+  const area = await c.req.json();
+  const res = await createArea(area);
+  return c.json(res);
 });
 
 export { app };
