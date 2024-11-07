@@ -3,7 +3,8 @@
   "scripts": {
     "start": "tsx watch src/index.ts",
     "build": "tsc",
-    "user-login": "tsx src/scripts/userLogin.ts"
+    "user-login": "tsx src/scripts/userLogin.ts",
+    "add-admin": "tsx src/scripts/createAdminUser.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.5",

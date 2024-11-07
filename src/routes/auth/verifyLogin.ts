@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import firebaseAuth from "../../firebaseAuth";
 import { db } from "../../database";
-import { User, NewUser } from "../../types";
+// import { User, NewUser } from "../../types";
 
 export const authVerifyLogin = new Hono();
 
