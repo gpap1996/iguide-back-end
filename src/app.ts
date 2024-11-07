@@ -1,24 +1,28 @@
 import "dotenv/config";
 import { Hono } from "hono";
-import { getAreas, createArea } from "./areaRepository";
+import { cors } from "hono/cors";
+
+import { HTTPException } from "hono/http-exception";
+import { authRoutes } from "./routes/auth";
+
 const app = new Hono();
+app.use(
+  "/api/*",
+  cors({
+    origin: "*",
+  })
+);
 
-app.get("/", (c) => {
-  return c.json({
-    msg: "TON HONO",
-  });
-});
+app.basePath("/api").route("/auth", authRoutes);
 
-app.get("/areas/:id?", async (c) => {
-  const id = Number(c.req.param("id"));
-  const res = await getAreas(id);
-  return c.json(res);
-});
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    return err.getResponse();
+  }
 
-app.post("/area", async (c) => {
-  const area = await c.req.json();
-  const res = await createArea(area);
-  return c.json(res);
+  console.error(err);
+
+  return c.text("Something went wrong", 500);
 });
 
 export { app };

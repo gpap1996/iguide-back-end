@@ -2,11 +2,13 @@
   "name": "my-app",
   "scripts": {
     "start": "tsx watch src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "user-login": "tsx src/scripts/userLogin.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.5",
     "dotenv": "^16.4.5",
+    "firebase-admin": "^12.7.0",
     "hono": "^4.6.9",
     "kysely": "^0.27.4",
     "pg": "^8.13.1"
@@ -15,6 +17,7 @@
     "@types/node": "^22.9.0",
     "@types/pg": "^8.11.10",
     "dbmate": "^2.21.0",
+    "firebase": "^11.0.1",
     "tsx": "^4.7.1",
     "typescript": "^5.6.3"
   }
