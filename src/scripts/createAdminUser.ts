@@ -1,7 +1,6 @@
 import "dotenv/config";
 import firebaseAuth from "../firebaseAuth";
 import { db } from "../database";
-import { sql } from "kysely";
 import { User } from "../types";
 
 async function createUserWithRoleAndSaveToDB(email: string, password: string) {
