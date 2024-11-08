@@ -15,15 +15,11 @@ export interface AreaTable {
   id: Generated<number>;
   title: string;
   desctiption: string;
-  parent_id: number | null;
-  weight: number | null;
+  parent_id?: number;
+  weight?: number;
   created_at: ColumnType<string, never, never>;
   updated_at: ColumnType<string, never, never>;
 }
-
-export type Area = Selectable<AreaTable>;
-export type NewArea = Insertable<AreaTable>;
-export type AreaUpdate = Updateable<AreaTable>;
 
 export interface UserTable {
   id: Generated<number>;
@@ -32,13 +28,9 @@ export interface UserTable {
   role: string;
   first_name: string | null;
   last_name: string | null;
-  email: string;
-  nationality: string;
-  country_of_residence: string;
+  email?: string;
+  nationality?: string;
+  country_of_residence?: string;
   created_at: ColumnType<string, never, never>;
   updated_at: ColumnType<string, never, never>;
 }
-
-export type User = Selectable<UserTable>;
-export type NewUser = Insertable<UserTable>;
-export type UserUpdate = Updateable<UserTable>;

@@ -1,7 +1,6 @@
 import "dotenv/config";
 import firebaseAuth from "../firebaseAuth";
 import { db } from "../database";
-import { User } from "../types";
 
 async function createUserWithRoleAndSaveToDB(email: string, password: string) {
   try {
@@ -23,7 +22,7 @@ async function createUserWithRoleAndSaveToDB(email: string, password: string) {
       userRecord.uid
     );
 
-    const newUser: User = {
+    const newUser = {
       user_id: userRecord.uid,
       username: "gpap",
       nationality: "Greece",

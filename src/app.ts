@@ -7,6 +7,7 @@ import { authRoutes } from "./routes/auth";
 import { areaRoutes } from "./routes/area";
 
 const app = new Hono();
+
 app.use(
   "/api/*",
   cors({
