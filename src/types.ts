@@ -1,10 +1,4 @@
-import {
-  ColumnType,
-  Generated,
-  Insertable,
-  Selectable,
-  Updateable,
-} from "kysely";
+import { ColumnType } from "kysely";
 
 export interface Database {
   areas: AreaTable;
@@ -12,7 +6,7 @@ export interface Database {
 }
 
 export interface AreaTable {
-  id: Generated<number>;
+  id: string;
   title: string;
   desctiption: string;
   parent_id?: number;
