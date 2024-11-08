@@ -22,8 +22,7 @@ export interface AreaTable {
 }
 
 export interface UserTable {
-  id: Generated<number>;
-  user_id: string;
+  id: string;
   username: string | null;
   role: string;
   first_name: string | null;

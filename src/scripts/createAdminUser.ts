@@ -23,7 +23,7 @@ async function createUserWithRoleAndSaveToDB(email: string, password: string) {
     );
 
     const newUser = {
-      user_id: userRecord.uid,
+      id: userRecord.uid,
       username: "gpap",
       nationality: "Greece",
       country_of_residence: "Greece",

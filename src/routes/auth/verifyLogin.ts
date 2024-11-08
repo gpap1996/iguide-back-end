@@ -15,14 +15,14 @@ authVerifyLogin.get("/verify-login", async (c) => {
   let user = await db
     .selectFrom("users")
     .selectAll()
-    .where("user_id", "=", uid)
+    .where("id", "=", uid)
     .executeTakeFirst();
 
   // If the user does not exist, insert a new one
   if (!user) {
     user = await db
       .insertInto("users")
-      .values({ user_id: uid, email, role: "guest" })
+      .values({ id: uid, email, role: "guest" })
       .returningAll()
       .executeTakeFirstOrThrow();
     console.log("New user created:", user);
