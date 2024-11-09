@@ -6,8 +6,8 @@ CREATE EXTENSION IF NOT EXISTS citext;
 -- Create the 'areas' table
 CREATE TABLE IF NOT EXISTS areas (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  title CITEXT UNIQUE NOT NULL,
-  description CITEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
   parent_id TEXT,
   weight INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT current_timestamp,
@@ -22,8 +22,6 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER update_areas_updated_at BEFORE
 UPDATE ON areas FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 -- migrate:down
--- Drop the trigger and function for cleanup
 DROP TRIGGER IF EXISTS update_areas_updated_at ON areas;
 DROP FUNCTION IF EXISTS update_updated_at;
--- Drop the 'areas' table
 DROP TABLE IF EXISTS areas;
