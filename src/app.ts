@@ -5,6 +5,8 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { authRoutes } from "./routes/auth";
 import { areaRoutes } from "./routes/area";
+import { mediaRoutes } from "./routes/media";
+import { serveStatic } from "@hono/node-server/serve-static";
 
 const app = new Hono();
 
@@ -15,17 +17,22 @@ app.use(
   })
 );
 
-app.basePath("/api").route("/auth", authRoutes);
-app.basePath("/api").route("/area", areaRoutes);
+app.use("/media/*", serveStatic({ root: "./" }));
 
-app.onError((err, c) => {
-  if (err instanceof HTTPException) {
-    return err.getResponse();
-  }
+app
+  .basePath("/api")
+  .route("/auth", authRoutes)
+  .route("/area", areaRoutes)
+  .route("/media", mediaRoutes);
 
-  console.error(err);
+// app.onError((err, c) => {
+//   if (err instanceof HTTPException) {
+//     return err.getResponse();
+//   }
 
-  return c.text("Something went wrong", 500);
-});
+//   console.error(err);
+
+//   return c.text("Something went wrong", 500);
+// });
 
 export { app };

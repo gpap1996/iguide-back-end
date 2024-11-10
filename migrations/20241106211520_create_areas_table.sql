@@ -23,5 +23,5 @@ CREATE TRIGGER update_areas_updated_at BEFORE
 UPDATE ON areas FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 -- migrate:down
 DROP TRIGGER IF EXISTS update_areas_updated_at ON areas;
-DROP FUNCTION IF EXISTS update_updated_at;
+DROP FUNCTION IF EXISTS update_updated_at();
 DROP TABLE IF EXISTS areas;

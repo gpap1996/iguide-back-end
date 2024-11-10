@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import firebaseAuth from "../../firebaseAuth";
-import { db } from "../../database";
+import { db } from "../../db/database";
 import { requiresAuth } from "../../middleware/requiresAuth";
 // import { User, NewUser } from "../../types";
 
