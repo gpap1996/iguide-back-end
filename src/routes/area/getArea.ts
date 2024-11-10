@@ -3,8 +3,8 @@ import { db } from "../../db/database";
 import { sql } from "kysely";
 
 export const getAreas = new Hono().get("/:id?", async (c) => {
-  const id = Number(c.req.param("id"));
-  const parentId = Number(c.req.query("parent_id"));
+  const id = c.req.param("id");
+  const parentId = c.req.query("parent_id");
   const title = c.req.query("title");
 
   // Start building the base query
