@@ -27,7 +27,7 @@ interface UploadResult {
 // Image optimization configuration
 const IMAGE_CONFIG = {
   maxWidth: 1200, // Maximum width for any image
-  jpegQuality: 90, // JPEG quality (0-100)
+  jpegQuality: 80, // JPEG quality (0-100)
   thumbnailWidth: 100, // Thumbnail width
 };
 
