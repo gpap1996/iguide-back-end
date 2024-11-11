@@ -3,8 +3,8 @@ import fs from "fs";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import path from "path";
 import { db } from "../../db/database";
+import sharp from "sharp";
 
-// Updated interfaces
 interface MediaMetadata {
   title?: string;
   type: string;
@@ -19,15 +19,58 @@ interface UploadResult {
   description?: string;
   type: string;
   url: string;
+  thumbnail_url?: string;
   originalName: string;
   size: number;
+}
+
+// Image optimization configuration
+const IMAGE_CONFIG = {
+  maxWidth: 1200, // Maximum width for any image
+  jpegQuality: 90, // JPEG quality (0-100)
+  thumbnailWidth: 100, // Thumbnail width
+};
+
+async function optimizeImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize({
+      width: IMAGE_CONFIG.maxWidth,
+      withoutEnlargement: true,
+      fit: "inside",
+    })
+    .jpeg({
+      quality: IMAGE_CONFIG.jpegQuality,
+      mozjpeg: true,
+    })
+    .toBuffer();
+}
+
+async function generateThumbnail(
+  buffer: Buffer,
+  originalName: string
+): Promise<string> {
+  const timestamp = Date.now();
+  const randomString = Math.random().toString(36).substring(7);
+  const extension = path.extname(originalName);
+  const thumbnailFileName = `thumb-${timestamp}-${randomString}${extension}`;
+  const thumbnailPath = path.join("./media", thumbnailFileName);
+
+  await sharp(buffer)
+    .resize({
+      width: IMAGE_CONFIG.thumbnailWidth,
+      fit: "contain",
+    })
+    .jpeg({ quality: 70 })
+    .toFile(thumbnailPath);
+
+  return `/media/${thumbnailFileName}`;
 }
 
 export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
   const body = await c.req.formData();
   const files = body.getAll("files");
   const metadataStr = body.get("metadata");
-  console.log("???");
+
   if (!files || files.length === 0) {
     return c.json({ error: "No files provided" }, 400);
   }
@@ -79,7 +122,8 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       continue;
     }
 
-    let generatedFileName = ""; // Declare filename outside try block
+    let generatedFileName = "";
+    let thumbnailUrl = "";
 
     try {
       const originalName = file.name;
@@ -90,14 +134,24 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       const timestamp = Date.now();
       const randomString = Math.random().toString(36).substring(7);
       generatedFileName = `${timestamp}-${randomString}${extension}`;
-      const filePath = path.join(uploadDir, generatedFileName);
-      const url = `/media/${generatedFileName}`;
 
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      fs.writeFileSync(filePath, buffer);
 
-      // Fix for the database query
+      // Only process images
+      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(originalName);
+      let finalBuffer = buffer;
+
+      if (isImage) {
+        finalBuffer = await optimizeImage(buffer);
+        thumbnailUrl = await generateThumbnail(buffer, originalName);
+      }
+
+      const filePath = path.join(uploadDir, generatedFileName);
+      const url = `/media/${generatedFileName}`;
+
+      fs.writeFileSync(filePath, finalBuffer);
+
       const savedMedia = await db
         .insertInto("media")
         .values({
@@ -105,6 +159,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
           description: meta.description?.trim(),
           type: meta.type,
           url,
+          thumbnail_url: isImage ? thumbnailUrl : null,
         })
         .returning([
           "id",
@@ -112,6 +167,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
           "description",
           "type",
           "url",
+          "thumbnail_url",
           "created_at",
           "updated_at",
         ])
@@ -128,12 +184,14 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         description: savedMedia.description || undefined,
         type: savedMedia.type,
         url: savedMedia.url,
+        thumbnail_url: savedMedia.thumbnail_url,
         originalName: originalName,
-        size: file.size,
+        size: finalBuffer.length,
       });
     } catch (error) {
       console.error("Error processing file:", error);
 
+      // Clean up main file
       if (generatedFileName) {
         const filePath = path.join(uploadDir, generatedFileName);
         if (fs.existsSync(filePath)) {
@@ -148,12 +206,28 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         }
       }
 
+      // Clean up thumbnail if it exists
+      if (thumbnailUrl) {
+        const thumbnailPath = path.join(".", thumbnailUrl);
+        if (fs.existsSync(thumbnailPath)) {
+          try {
+            fs.unlinkSync(thumbnailPath);
+          } catch (cleanupError) {
+            console.error(
+              "Error cleaning up thumbnail after failed upload:",
+              cleanupError
+            );
+          }
+        }
+      }
+
       uploadResults.push({
         success: false,
         id: "",
-        title: file.name, // Use file.name as fallback
+        title: file.name,
         type: meta.type,
         url: "",
+        thumbnail_url: "",
         originalName: file.name,
         size: file.size,
       });

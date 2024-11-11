@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS media (
     description TEXT,
     type TEXT NOT NULL,
     url TEXT NOT NULL,
+    thumbnail_url TEXT,
     created_at TIMESTAMP DEFAULT current_timestamp,
     updated_at TIMESTAMP DEFAULT current_timestamp
 );

@@ -6,6 +6,7 @@ export interface MediaTable {
   description?: string;
   type: string;
   url: string;
+  thumbnail_url?: string;
   created_at: ColumnType<string, never, never>;
   updated_at: ColumnType<string, never, never>;
 }
