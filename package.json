@@ -7,7 +7,6 @@
     "create-admin": "tsx src/scripts/createAdminUser.ts"
   },
   "dependencies": {
-    "@hono-storage/core": "^0.0.13",
     "@hono/node-server": "^1.13.5",
     "@hono/zod-validator": "^0.4.1",
     "dotenv": "^16.4.5",

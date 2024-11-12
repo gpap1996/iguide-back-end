@@ -7,9 +7,7 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 -- Create the 'areas' table
 CREATE TABLE IF NOT EXISTS areas (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT,
-  parent_id TEXT,
+  parent_id UUID,
   weight INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT current_timestamp,
   updated_at TIMESTAMP DEFAULT current_timestamp

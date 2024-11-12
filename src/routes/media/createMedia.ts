@@ -159,7 +159,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
           description: meta.description?.trim(),
           type: meta.type,
           url,
-          thumbnail_url: isImage ? thumbnailUrl : null,
+          thumbnail_url: isImage ? thumbnailUrl : undefined,
         })
         .returning([
           "id",
