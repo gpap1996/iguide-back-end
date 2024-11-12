@@ -2,8 +2,6 @@ import { ColumnType } from "kysely";
 
 export interface MediaTable {
   id?: string;
-  title: string;
-  description?: string;
   type: string;
   url: string;
   thumbnail_url?: string;

@@ -6,17 +6,13 @@ import { db } from "../../db/database";
 import sharp from "sharp";
 
 interface MediaMetadata {
-  title?: string;
   type: string;
-  description?: string;
   fileIndex: number;
 }
 
 interface UploadResult {
   success: boolean;
   id?: string;
-  title: string;
-  description?: string;
   type: string;
   url: string;
   thumbnail_url?: string;
@@ -129,7 +125,6 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       const originalName = file.name;
       const extension = path.extname(originalName);
       const nameWithoutExt = path.basename(originalName, extension);
-      const title = meta.title?.trim() || nameWithoutExt;
 
       const timestamp = Date.now();
       const randomString = Math.random().toString(36).substring(7);
@@ -155,16 +150,12 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       const savedMedia = await db
         .insertInto("media")
         .values({
-          title,
-          description: meta.description?.trim(),
           type: meta.type,
           url,
           thumbnail_url: isImage ? thumbnailUrl : undefined,
         })
         .returning([
           "id",
-          "title",
-          "description",
           "type",
           "url",
           "thumbnail_url",
@@ -180,8 +171,6 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       uploadResults.push({
         success: true,
         id: savedMedia.id,
-        title: savedMedia.title,
-        description: savedMedia.description || undefined,
         type: savedMedia.type,
         url: savedMedia.url,
         thumbnail_url: savedMedia.thumbnail_url,
@@ -224,7 +213,6 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       uploadResults.push({
         success: false,
         id: "",
-        title: file.name,
         type: meta.type,
         url: "",
         thumbnail_url: "",

@@ -5,8 +5,6 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 const schema = z.object({
-  title: z.string().min(1, { message: "Title is required" }),
-  description: z.string().optional(),
   parent_id: z.string().optional(),
   weight: z.number().optional(),
   images: z.array(z.string()).optional(),
