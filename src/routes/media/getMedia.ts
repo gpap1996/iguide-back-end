@@ -14,16 +14,17 @@ interface MediaItem {
 }
 
 interface Translation {
+  id: string;
   field: "title" | "description";
   field_value: string;
   language_id: string;
 }
 
-// Define a type for translations grouped by language_id
 type TranslationsByLanguage = {
   [language_id: string]: {
     title?: string;
     description?: string;
+    id?: string;
   };
 };
 
@@ -57,7 +58,7 @@ export const getMedia = new Hono().get("/:id?", async (c) => {
     for (const item of items) {
       const translations = await db
         .selectFrom("translations")
-        .select(["field", "field_value", "language_id"])
+        .select(["id", "field", "field_value", "language_id"])
         .where("entity_type", "=", "media")
         .where("entity_id", "=", item.id)
         .execute();
@@ -109,7 +110,7 @@ export const getMedia = new Hono().get("/:id?", async (c) => {
   for (const item of items) {
     const translations: Translation[] = await db
       .selectFrom("translations")
-      .select(["field", "field_value", "language_id"])
+      .select(["id", "field", "field_value", "language_id"])
       .where("entity_type", "=", "media")
       .where("entity_id", "=", item.id)
       .execute();
@@ -130,25 +131,27 @@ export const getMedia = new Hono().get("/:id?", async (c) => {
   });
 });
 
-// Helper function to group translations by language_id
+// Modified helper function to include translation IDs
 function groupTranslationsByLanguage(
   translations: Translation[]
 ): TranslationsByLanguage {
   const grouped: TranslationsByLanguage = {};
 
   translations.forEach((translation) => {
-    const { language_id, field, field_value } = translation;
+    const { id, language_id, field, field_value } = translation;
 
     // Initialize the language key if it doesn't exist
     if (!grouped[language_id]) {
       grouped[language_id] = {};
     }
 
-    // Assign the field values based on the field name
+    // Assign both the field values and their corresponding IDs
     if (field === "title") {
       grouped[language_id].title = field_value;
+      grouped[language_id].id = id;
     } else if (field === "description") {
       grouped[language_id].description = field_value;
+      grouped[language_id].id = id;
     }
   });
 
