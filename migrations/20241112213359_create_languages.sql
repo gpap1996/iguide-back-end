@@ -3,7 +3,7 @@
 create table languages (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT NOT NULL,
-    code TEXT NOT NULL,
+    locale TEXT UNIQUE NOT NULL,
     created_at timestamp default current_timestamp,
     updated_at timestamp default current_timestamp
 );

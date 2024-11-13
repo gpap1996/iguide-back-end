@@ -12,7 +12,7 @@ interface MediaMetadata {
   type?: string;
   fileIndex?: number;
   translations?: {
-    [language_id: string]: {
+    [locale: string]: {
       title?: string | null;
       description?: string | null;
     };
@@ -28,7 +28,7 @@ interface UpdateResult {
   originalName?: string;
   size?: number;
   translations?: {
-    [language_id: string]: {
+    [locale: string]: {
       title?: string | null;
       description?: string | null;
     };
@@ -177,13 +177,13 @@ async function saveTranslations(
   if (!translations) return;
 
   const translationValues = Object.entries(translations).flatMap(
-    ([language_id, fields]) =>
+    ([locale, fields]) =>
       Object.entries(fields)
         .filter(([_, value]) => value !== undefined)
         .map(([field, value]) => ({
           entity_type: "media",
           entity_id: mediaId,
-          language_id,
+          locale,
           field,
           field_value: value ?? "",
         }))

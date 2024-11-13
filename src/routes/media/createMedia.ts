@@ -13,6 +13,7 @@ interface MediaMetadata {
   fileIndex: number;
   translations?: {
     [language_id: string]: {
+      // Changed from locale to language_id
       title?: string | null;
       description?: string | null;
     };
@@ -29,6 +30,7 @@ interface UploadResult {
   size: number;
   translations?: {
     [language_id: string]: {
+      // Changed from locale to language_id
       title?: string | null;
       description?: string | null;
     };

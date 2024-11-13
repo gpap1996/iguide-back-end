@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const schema = z.object({
   name: z.string({ required_error: "Language name is required" }),
-  code: z.string({ required_error: "Language code is required" }),
+  locale: z.string({ required_error: "Language code is required" }),
 });
 
 export const createLanguage = new Hono().post(

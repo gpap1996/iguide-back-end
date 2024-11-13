@@ -3,7 +3,7 @@ import { TranslationTable } from "./translationType";
 interface Translation {
   field: "title" | "description";
   field_value: string;
-  language_id: string;
+  locale: string;
 }
 export interface MediaTable {
   id?: string;

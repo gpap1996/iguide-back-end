@@ -6,7 +6,7 @@ export interface TranslationTable {
   entity_id: string;
   field: string;
   field_value: string;
-  language_id: string;
+  locale?: string;
   created_at: ColumnType<string, never, never>;
   updated_at: ColumnType<string, never, never>;
 }

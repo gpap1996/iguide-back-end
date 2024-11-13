@@ -6,9 +6,9 @@ create table translations (
     -- area, poi, trail, trail_segment etc etc
     entity_id TEXT NOT NULL,
     -- ID of the entity
-    field text NOT NULL,
+    field TEXT NOT NULL,
     -- Field to be translated, e.g., title, subtitle, description
-    language_id UUID REFERENCES languages(id),
+    locale TEXT REFERENCES languages(locale),
     -- required
     field_value TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT current_timestamp,
