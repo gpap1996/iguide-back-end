@@ -8,6 +8,13 @@ import sharp from "sharp";
 interface MediaMetadata {
   type: string;
   fileIndex: number;
+  translations?: {
+    [language_id: string]: {
+      // Changed from locale to language_id
+      title?: string | null;
+      description?: string | null;
+    };
+  };
 }
 
 interface UploadResult {
@@ -18,15 +25,23 @@ interface UploadResult {
   thumbnail_url?: string;
   originalName: string;
   size: number;
+  translations?: {
+    [language_id: string]: {
+      // Changed from locale to language_id
+      title?: string | null;
+      description?: string | null;
+    };
+  };
 }
 
-// Image optimization configuration
+// Image optimization configuration remains the same
 const IMAGE_CONFIG = {
-  maxWidth: 1200, // Maximum width for any image
-  jpegQuality: 80, // JPEG quality (0-100)
-  thumbnailWidth: 100, // Thumbnail width
+  maxWidth: 1200,
+  jpegQuality: 80,
+  thumbnailWidth: 100,
 };
 
+// Existing image optimization functions remain the same
 async function optimizeImage(buffer: Buffer): Promise<Buffer> {
   return sharp(buffer)
     .resize({
@@ -60,6 +75,40 @@ async function generateThumbnail(
     .toFile(thumbnailPath);
 
   return `/media/${thumbnailFileName}`;
+}
+
+async function saveTranslations(
+  mediaId: string,
+  translations: MediaMetadata["translations"]
+) {
+  if (!translations) return;
+
+  const translationValues = Object.entries(translations).flatMap(
+    ([language_id, fields]) =>
+      Object.entries(fields)
+        .filter(([_, value]) => value !== undefined)
+        .map(([field, value]) => ({
+          entity_type: "media",
+          entity_id: mediaId,
+          language_id, // Using language_id instead of locale
+          field,
+          field_value: value ?? "",
+        }))
+  );
+
+  if (translationValues.length > 0) {
+    await db.transaction().execute(async (trx) => {
+      // First delete any existing translations for this media
+      await trx
+        .deleteFrom("translations")
+        .where("entity_type", "=", "media")
+        .where("entity_id", "=", mediaId)
+        .execute();
+
+      // Then insert the new translations
+      await trx.insertInto("translations").values(translationValues).execute();
+    });
+  }
 }
 
 export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
@@ -124,7 +173,6 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
     try {
       const originalName = file.name;
       const extension = path.extname(originalName);
-      const nameWithoutExt = path.basename(originalName, extension);
 
       const timestamp = Date.now();
       const randomString = Math.random().toString(36).substring(7);
@@ -168,6 +216,11 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         throw new Error("Failed to save media to database");
       }
 
+      // Save translations if they exist
+      if (meta.translations && savedMedia.id) {
+        await saveTranslations(savedMedia.id, meta.translations);
+      }
+
       uploadResults.push({
         success: true,
         id: savedMedia.id,
@@ -176,6 +229,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         thumbnail_url: savedMedia.thumbnail_url,
         originalName: originalName,
         size: finalBuffer.length,
+        translations: meta.translations,
       });
     } catch (error) {
       console.error("Error processing file:", error);

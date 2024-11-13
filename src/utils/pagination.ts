@@ -44,7 +44,7 @@ export async function paginateQuery<T extends Record<string, any>>(
 
   // Handle case where limit is -1 (return all results)
   if (limit === -1) {
-    const items = await baseQuery.orderBy("created_at", "desc").execute();
+    const items = await baseQuery.execute();
     return {
       success: true,
       items,
@@ -83,7 +83,7 @@ export async function paginateQuery<T extends Record<string, any>>(
   const items = await baseQuery
     .limit(limit)
     .offset(offset)
-    .orderBy("created_at", "desc")
+
     .execute();
 
   return {

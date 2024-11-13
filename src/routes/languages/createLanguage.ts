@@ -5,21 +5,19 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 const schema = z.object({
-  parent_id: z.string().optional(),
-  weight: z.number().optional(),
-  images: z.array(z.string()).optional(),
-  sound: z.string().optional(),
+  name: z.string({ required_error: "Language name is required" }),
+  code: z.string({ required_error: "Language code is required" }),
 });
 
-export const createArea = new Hono().post(
+export const createLanguage = new Hono().post(
   "/",
   requiresAdmin,
   zValidator("json", schema),
   async (c) => {
-    const area = c.req.valid("json");
+    const language = c.req.valid("json");
     const res = await db
-      .insertInto("areas")
-      .values(area)
+      .insertInto("languages")
+      .values(language)
       .returningAll()
       .executeTakeFirstOrThrow();
 

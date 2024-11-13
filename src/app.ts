@@ -4,8 +4,10 @@ import { cors } from "hono/cors";
 
 import { HTTPException } from "hono/http-exception";
 import { authRoutes } from "./routes/auth";
-import { areaRoutes } from "./routes/area";
+import { languageRoutes } from "./routes/languages";
 import { mediaRoutes } from "./routes/media";
+import { areaRoutes } from "./routes/area";
+
 import { serveStatic } from "@hono/node-server/serve-static";
 
 const app = new Hono();
@@ -22,8 +24,9 @@ app.use("/media/*", serveStatic({ root: "./" }));
 app
   .basePath("/api")
   .route("/auth", authRoutes)
-  .route("/area", areaRoutes)
-  .route("/media", mediaRoutes);
+  .route("/media", mediaRoutes)
+  .route("/language", languageRoutes)
+  .route("/area", areaRoutes);
 
 // app.onError((err, c) => {
 //   if (err instanceof HTTPException) {
