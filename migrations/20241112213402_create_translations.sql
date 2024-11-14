@@ -4,11 +4,11 @@ create table translations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     entity_type TEXT NOT NULL,
     -- area, poi, trail, trail_segment etc etc
-    entity_id TEXT NOT NULL,
+    entity_id UUID NOT NULL,
     -- ID of the entity
     field TEXT NOT NULL,
     -- Field to be translated, e.g., title, subtitle, description
-    locale TEXT REFERENCES languages(locale),
+    language_id UUID REFERENCES languages(id),
     -- required
     field_value TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT current_timestamp,

@@ -170,26 +170,45 @@ export const updateMedia = new Hono().patch(
   }
 );
 
+// Function to save translations to the database
 async function saveTranslations(
   mediaId: string,
   translations: MediaMetadata["translations"]
 ) {
   if (!translations) return;
 
-  const translationValues = Object.entries(translations).flatMap(
-    ([locale, fields]) =>
-      Object.entries(fields)
+  const translationValues = await Promise.all(
+    Object.entries(translations).map(async ([locale, fields]) => {
+      // Fetch the language_id for the given locale
+      const language = await db
+        .selectFrom("languages")
+        .where("locale", "=", locale)
+        .select("id")
+        .executeTakeFirst();
+
+      if (!language) {
+        console.error(`Language with locale ${locale} not found.`);
+        return [];
+      }
+
+      const languageId = language.id;
+
+      return Object.entries(fields)
         .filter(([_, value]) => value !== undefined)
         .map(([field, value]) => ({
           entity_type: "media",
           entity_id: mediaId,
-          locale,
+          language_id: languageId, // Use language_id instead of locale
           field,
           field_value: value ?? "",
-        }))
+        }));
+    })
   );
 
-  if (translationValues.length > 0) {
+  // Flatten the array of translation values
+  const flattenedTranslationValues = translationValues.flat();
+
+  if (flattenedTranslationValues.length > 0) {
     await db.transaction().execute(async (trx) => {
       // First delete any existing translations for this media
       await trx
@@ -199,7 +218,10 @@ async function saveTranslations(
         .execute();
 
       // Then insert the new translations
-      await trx.insertInto("translations").values(translationValues).execute();
+      await trx
+        .insertInto("translations")
+        .values(flattenedTranslationValues)
+        .execute();
     });
   }
 }

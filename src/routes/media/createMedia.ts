@@ -12,8 +12,7 @@ interface MediaMetadata {
   type: string;
   fileIndex: number;
   translations?: {
-    [language_id: string]: {
-      // Changed from locale to language_id
+    [locale: string]: {
       title?: string | null;
       description?: string | null;
     };
@@ -29,14 +28,14 @@ interface UploadResult {
   originalName: string;
   size: number;
   translations?: {
-    [language_id: string]: {
-      // Changed from locale to language_id
+    [locale: string]: {
       title?: string | null;
       description?: string | null;
     };
   };
 }
 
+// Create media endpoint
 export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
   const body = await c.req.formData();
   const file = body.get("file");
@@ -145,7 +144,6 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
   } catch (error) {
     console.error("Error processing file:", error);
 
-    // Clean up main file
     if (generatedFileName) {
       const filePath = path.join(uploadDir, generatedFileName);
       if (fs.existsSync(filePath)) {
@@ -160,7 +158,6 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       }
     }
 
-    // Clean up thumbnail if it exists
     if (thumbnailUrl) {
       const thumbnailPath = path.join(".", thumbnailUrl);
       if (fs.existsSync(thumbnailPath)) {
@@ -193,26 +190,45 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
   });
 });
 
+// Modified function to save translations
 async function saveTranslations(
   mediaId: string,
   translations: MediaMetadata["translations"]
 ) {
   if (!translations) return;
 
-  const translationValues = Object.entries(translations).flatMap(
-    ([language_id, fields]) =>
-      Object.entries(fields)
+  const translationValues = await Promise.all(
+    Object.entries(translations).map(async ([locale, fields]) => {
+      // Fetch the language_id for the given locale
+      const language = await db
+        .selectFrom("languages")
+        .where("locale", "=", locale)
+        .select("id")
+        .executeTakeFirst();
+
+      if (!language) {
+        console.error(`Language with locale ${locale} not found.`);
+        return [];
+      }
+
+      const languageId = language.id;
+
+      return Object.entries(fields)
         .filter(([_, value]) => value !== undefined)
         .map(([field, value]) => ({
           entity_type: "media",
           entity_id: mediaId,
-          language_id, // Using language_id instead of locale
+          language_id: languageId, // Use language_id instead of locale
           field,
           field_value: value ?? "",
-        }))
+        }));
+    })
   );
 
-  if (translationValues.length > 0) {
+  // Flatten the array of translation values
+  const flattenedTranslationValues = translationValues.flat();
+
+  if (flattenedTranslationValues.length > 0) {
     await db.transaction().execute(async (trx) => {
       // First delete any existing translations for this media
       await trx
@@ -222,7 +238,10 @@ async function saveTranslations(
         .execute();
 
       // Then insert the new translations
-      await trx.insertInto("translations").values(translationValues).execute();
+      await trx
+        .insertInto("translations")
+        .values(flattenedTranslationValues)
+        .execute();
     });
   }
 }

@@ -2,161 +2,107 @@ import { Hono } from "hono";
 import { db } from "../../db/database";
 import { sql } from "kysely";
 
-// Define TypeScript types for MediaItem and Translation
-interface MediaItem {
-  id: string;
-  type: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-  thumbnail_url?: string;
-  translations?: TranslationsByLanguage;
-}
-
-interface Translation {
-  id: string;
-  field: "title" | "description";
-  field_value: string;
-  locale: string;
-}
-
-type TranslationsByLanguage = {
-  [locale: string]: {
-    title?: string;
-    description?: string;
-    id?: string;
-  };
-};
-
-export const getMedia = new Hono().get("/:id?", async (c) => {
-  // Extract query parameters and pagination settings
-  const id = c.req.param("id");
-  const title = c.req.query("title");
+export const getMedia = new Hono().get("/", async (c) => {
   const limit = parseInt(c.req.query("limit") || "10", 10);
   const page = parseInt(c.req.query("page") || "1", 10);
+  const title = c.req.query("title");
 
-  // Build base query for media
-  let baseQuery = db.selectFrom("media").selectAll();
-
-  // Apply filters based on query parameters
-  if (id) {
-    baseQuery = baseQuery.where("id", "=", id);
-  }
+  let baseQuery = db
+    .selectFrom("media as m")
+    .leftJoin("translations as tr", "m.id", "tr.entity_id")
+    .leftJoin("languages as l", "tr.language_id", "l.id");
 
   if (title) {
     const searchPattern = `%${title}%`;
-    baseQuery = baseQuery.where(
-      sql`unaccent(lower(title)) LIKE unaccent(lower(${searchPattern}))`.$castTo<boolean>()
-    );
+    const matchingMediaIds = db
+      .selectFrom("media as m")
+      .leftJoin("translations as tr", "m.id", "tr.entity_id")
+      .leftJoin("languages as l", "tr.language_id", "l.id")
+      .where("tr.field", "=", "title")
+      .where(
+        sql`unaccent(lower(tr.field_value)) LIKE unaccent(lower(${searchPattern}))`.$castTo<boolean>()
+      )
+      .select("m.id");
+
+    baseQuery = baseQuery.where("m.id", "in", matchingMediaIds);
   }
 
-  // Handle case where limit is -1 (return all results)
-  if (limit === -1) {
-    const items: MediaItem[] = await baseQuery
-      .orderBy("created_at", "desc")
-      .execute();
-
-    // Fetch and group translations for each item
-    for (const item of items) {
-      const translations = await db
-        .selectFrom("translations")
-        .select(["id", "field", "field_value", "locale"])
-        .where("entity_type", "=", "media")
-        .where("entity_id", "=", item.id)
-        .execute();
-
-      item.translations = groupTranslationsByLanguage(translations);
-    }
-
-    return c.json({
-      media: items,
-      pagination: {
-        limit,
-        page,
-        totalItems: items.length,
-        currentPage: page,
-        totalPages: 1,
-      },
-    });
-  }
-
-  // Calculate offset for pagination
-  const offset = (page - 1) * limit;
-
-  // Count the total items
-  const countResult = await baseQuery
-    .clearSelect()
-    .select(sql`COUNT(*)`.as("count"))
-    .execute();
-  const totalItems = Number(countResult[0]?.count || 0);
-  const totalPages = Math.ceil(totalItems / limit);
-
-  // Check if the requested page is valid
-  if (page > totalPages && totalPages > 0) {
-    return c.json(
-      {
-        error: "Invalid page number",
-        message: `Page ${page} exceeds the total number of pages (${totalPages}).`,
-      },
-      400
-    );
-  }
-
-  // Fetch paginated items
-  const items: MediaItem[] = await baseQuery
+  const finalQuery = baseQuery
+    .select([
+      "m.id as id",
+      "m.type as type",
+      "m.url as url",
+      "m.thumbnail_url as thumbnail_url",
+      sql`json_agg(
+        CASE 
+          WHEN tr.id IS NOT NULL THEN 
+            json_build_object(
+              'id', tr.id,
+              'locale', l.locale,
+              'field', tr.field,
+              'field_value', tr.field_value
+            )
+          ELSE NULL 
+        END
+      ) FILTER (WHERE tr.id IS NOT NULL)`.as("translations"),
+    ])
+    .groupBy(["m.id", "m.type", "m.url", "m.thumbnail_url"])
+    .orderBy("m.id")
     .limit(limit)
-    .offset(offset)
-    .orderBy("created_at", "desc")
-    .execute();
+    .offset((page - 1) * limit);
 
-  // Fetch and group translations for each item
-  for (const item of items) {
-    const translations: Translation[] = await db
-      .selectFrom("translations")
-      .select(["id", "field", "field_value", "locale"])
-      .where("entity_type", "=", "media")
-      .where("entity_id", "=", item.id)
-      .execute();
-
-    item.translations = groupTranslationsByLanguage(translations);
-  }
-
-  // Return the items along with pagination details
+  const res = await finalQuery.execute();
+  const transformed = transformMediaTranslations(res);
   return c.json({
-    media: items,
-    pagination: {
-      limit,
-      page,
-      totalItems,
-      currentPage: page,
-      totalPages,
-    },
+    media: transformed,
   });
 });
 
-// Modified helper function to include translation IDs
-function groupTranslationsByLanguage(
-  translations: Translation[]
-): TranslationsByLanguage {
-  const grouped: TranslationsByLanguage = {};
+type Translation = {
+  locale: string;
+  field: string;
+  field_value: string;
+  id: string;
+};
 
-  translations.forEach((translation) => {
-    const { id, locale, field, field_value } = translation;
+type MediaItem = {
+  id?: string;
+  type?: string;
+  url?: string;
+  thumbnail_url?: string;
+  translations?: Translation[] | null;
+};
 
-    // Initialize the language key if it doesn't exist
-    if (!grouped[locale]) {
-      grouped[locale] = {};
+type TransformedTranslations = {
+  [locale: string]: {
+    [field: string]: string;
+  };
+};
+
+type TransformedMediaItem = Omit<MediaItem, "translations"> & {
+  translations: TransformedTranslations;
+};
+
+export function transformMediaTranslations(
+  mediaItems: MediaItem[]
+): TransformedMediaItem[] {
+  return mediaItems.map((item) => {
+    const { translations, ...mediaProps } = item;
+    const transformedTranslations: TransformedTranslations = {};
+
+    if (translations) {
+      translations.forEach((translation) => {
+        const { locale, field, field_value } = translation;
+        if (!transformedTranslations[locale]) {
+          transformedTranslations[locale] = {};
+        }
+        transformedTranslations[locale][field] = field_value;
+      });
     }
 
-    // Assign both the field values and their corresponding IDs
-    if (field === "title") {
-      grouped[locale].title = field_value;
-      grouped[locale].id = id;
-    } else if (field === "description") {
-      grouped[locale].description = field_value;
-      grouped[locale].id = id;
-    }
+    return {
+      ...mediaProps,
+      translations: transformedTranslations,
+    };
   });
-
-  return grouped;
 }
