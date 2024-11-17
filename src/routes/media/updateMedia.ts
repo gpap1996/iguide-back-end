@@ -8,220 +8,182 @@ import {
   generateThumbnail,
 } from "../../utils/imageOptimization";
 
-interface MediaMetadata {
-  type?: string;
-  fileIndex?: number;
-  translations?: {
-    [locale: string]: {
-      title?: string | null;
-      description?: string | null;
-    };
+interface Translation {
+  title: string;
+  description: string;
+}
+
+interface Metadata {
+  translations: {
+    [key: string]: Translation;
   };
 }
 
-interface UpdateResult {
-  success: boolean;
-  id: string;
-  type: string;
-  url: string;
-  thumbnail_url?: string;
-  originalName?: string;
-  size?: number;
-  translations?: {
-    [locale: string]: {
-      title?: string | null;
-      description?: string | null;
-    };
-  };
-}
+export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
+  const mediaId = c.req.param("id");
+  if (!mediaId) {
+    return c.json({ error: "Invalid media ID" }, 400);
+  }
 
-export const updateMedia = new Hono().patch(
-  "/:id",
-  requiresAdmin,
-  async (c) => {
-    const mediaId = c.req.param("id");
-    const body = await c.req.formData();
-    const file = body.get("file");
-    const type = body.get("type")?.toString();
-    const metadataStr = body.get("metadata");
+  const body = await c.req.formData();
+  const file = body.get("file");
+  const type = body.get("type")?.toString();
+  const metadataStr = body.get("metadata");
 
-    // First, fetch the existing media record
-    const existingMedia = await db
-      .selectFrom("media")
-      .where("id", "=", mediaId)
-      .selectAll()
-      .executeTakeFirst();
+  // Check if media exists
+  const existingMedia = await db
+    .selectFrom("media")
+    .select(["url", "thumbnail_url"])
+    .where("id", "=", mediaId)
+    .executeTakeFirst();
 
-    if (!existingMedia) {
-      return c.json({ error: "Media not found" }, 404);
-    }
+  if (!existingMedia) {
+    return c.json({ error: "Media not found" }, 404);
+  }
 
-    let metadata: MediaMetadata = {};
-    if (metadataStr) {
-      try {
-        metadata = JSON.parse(metadataStr as string);
-      } catch (error) {
-        return c.json({ error: "Invalid metadata format" }, 400);
-      }
-    }
-
-    const uploadDir = "./media";
-    let updateResult: UpdateResult = {
-      success: false,
-      id: mediaId,
-      type: existingMedia.type,
-      url: existingMedia.url,
-      thumbnail_url: existingMedia.thumbnail_url,
-    };
-
+  let metadata: Metadata | undefined;
+  if (metadataStr) {
     try {
-      // Handle file update if new file is provided
-      if (file instanceof File) {
-        const originalName = file.name;
-        const extension = path.extname(originalName);
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(7);
-        const generatedFileName = `${timestamp}-${randomString}${extension}`;
+      metadata = JSON.parse(metadataStr as string);
+    } catch (error) {
+      return c.json({ error: "Invalid metadata format" }, 400);
+    }
+  }
 
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+  const uploadDir = "./media";
+  let newUrl: string | undefined;
+  let newThumbnailUrl: string | undefined;
+  let oldFilePath: string | undefined;
+  let oldThumbnailPath: string | undefined;
 
-        // Process images
-        const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(originalName);
-        let finalBuffer = buffer;
-        let thumbnailUrl = existingMedia.thumbnail_url;
+  try {
+    // Handle file update if provided
+    if (file && file instanceof File) {
+      const originalName = file.name;
+      const extension = path.extname(originalName);
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(7);
+      const newFileName = `${timestamp}-${randomString}${extension}`;
 
-        if (isImage) {
-          finalBuffer = await optimizeImage(buffer);
-          thumbnailUrl = await generateThumbnail(buffer, originalName);
-        }
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
 
-        const filePath = path.join(uploadDir, generatedFileName);
-        const newUrl = `/media/${generatedFileName}`;
+      // Only process images
+      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(originalName);
+      let finalBuffer = buffer;
 
-        // Write new file
-        fs.writeFileSync(filePath, finalBuffer);
-
-        // Delete old file
-        const oldFilePath = path.join(".", existingMedia.url);
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
-        }
-
-        // Delete old thumbnail if it exists
-        if (existingMedia.thumbnail_url) {
-          const oldThumbnailPath = path.join(".", existingMedia.thumbnail_url);
-          if (fs.existsSync(oldThumbnailPath)) {
-            fs.unlinkSync(oldThumbnailPath);
-          }
-        }
-
-        // Update database with new file information
-        await db
-          .updateTable("media")
-          .set({
-            url: newUrl,
-            thumbnail_url: thumbnailUrl,
-          })
-          .where("id", "=", mediaId)
-          .execute();
-
-        updateResult.url = newUrl;
-        updateResult.thumbnail_url = thumbnailUrl;
-        updateResult.originalName = originalName;
-        updateResult.size = finalBuffer.length;
+      if (isImage) {
+        finalBuffer = await optimizeImage(buffer);
+        newThumbnailUrl = await generateThumbnail(buffer, originalName);
       }
 
-      // Update type if provided
-      if (type) {
-        await db
-          .updateTable("media")
-          .set({
-            type: type,
-          })
-          .where("id", "=", mediaId)
-          .execute();
+      const newFilePath = path.join(uploadDir, newFileName);
+      newUrl = `/media/${newFileName}`;
 
-        updateResult.type = type;
+      fs.writeFileSync(newFilePath, finalBuffer);
+
+      // Store old file paths for cleanup
+      if (existingMedia.url) {
+        oldFilePath = path.join(uploadDir, path.basename(existingMedia.url));
+      }
+      if (existingMedia.thumbnail_url) {
+        oldThumbnailPath = path.join(
+          uploadDir,
+          path.basename(existingMedia.thumbnail_url)
+        );
+      }
+    }
+
+    const result = await db.transaction().execute(async (trx) => {
+      // Update media record
+      const updateValues: any = {};
+      if (type) updateValues.type = type;
+      if (newUrl) updateValues.url = newUrl;
+      if (newThumbnailUrl) updateValues.thumbnail_url = newThumbnailUrl;
+
+      const updatedMedia = await trx
+        .updateTable("media")
+        .set(updateValues)
+        .where("id", "=", mediaId)
+        .returning([
+          "id",
+          "type",
+          "url",
+          "thumbnail_url",
+          "created_at",
+          "updated_at",
+        ])
+        .executeTakeFirst();
+
+      if (!updatedMedia) {
+        throw new Error("Failed to update media");
       }
 
       // Update translations if provided
-      if (metadata.translations) {
-        await saveTranslations(mediaId, metadata.translations);
-        updateResult.translations = metadata.translations;
+      if (metadata?.translations) {
+        // Delete existing translations
+        await trx
+          .deleteFrom("media_translations")
+          .where("media_id", "=", mediaId)
+          .execute();
+
+        // Insert new translations
+        const translationPromises = Object.entries(metadata.translations).map(
+          async ([locale, translation]) => {
+            const language = await trx
+              .selectFrom("languages")
+              .select("id")
+              .where("locale", "=", locale)
+              .executeTakeFirst();
+
+            if (!language) {
+              throw new Error(`Language not found for locale: ${locale}`);
+            }
+
+            return trx
+              .insertInto("media_translations")
+              .values({
+                media_id: mediaId,
+                language_id: language.id,
+                title: translation.title,
+                description: translation.description,
+              })
+              .execute();
+          }
+        );
+
+        await Promise.all(translationPromises);
       }
 
-      updateResult.success = true;
-    } catch (error) {
-      console.error("Error updating media:", error);
-      return c.json(
-        {
-          success: false,
-          error: "Failed to update media",
-        },
-        500
-      );
+      return updatedMedia;
+    });
+
+    // Clean up old files after successful transaction
+    if (oldFilePath && fs.existsSync(oldFilePath)) {
+      fs.unlinkSync(oldFilePath);
+    }
+    if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
+      fs.unlinkSync(oldThumbnailPath);
     }
 
     return c.json({
       success: true,
-      file: updateResult,
+      data: result,
     });
-  }
-);
+  } catch (error) {
+    console.error("Error updating media:", error);
 
-// Function to save translations to the database
-async function saveTranslations(
-  mediaId: string,
-  translations: MediaMetadata["translations"]
-) {
-  if (!translations) return;
-
-  const translationValues = await Promise.all(
-    Object.entries(translations).map(async ([locale, fields]) => {
-      // Fetch the language_id for the given locale
-      const language = await db
-        .selectFrom("languages")
-        .where("locale", "=", locale)
-        .select("id")
-        .executeTakeFirst();
-
-      if (!language) {
-        console.error(`Language with locale ${locale} not found.`);
-        return [];
+    // Clean up new file if transaction failed
+    if (newUrl) {
+      const newFilePath = path.join(uploadDir, path.basename(newUrl));
+      if (fs.existsSync(newFilePath)) {
+        fs.unlinkSync(newFilePath);
       }
+    }
 
-      const languageId = language.id;
-
-      return Object.entries(fields)
-        .filter(([_, value]) => value !== undefined)
-        .map(([field, value]) => ({
-          entity_type: "media",
-          entity_id: mediaId,
-          language_id: languageId, // Use language_id instead of locale
-          field,
-          field_value: value ?? "",
-        }));
-    })
-  );
-
-  // Flatten the array of translation values
-  const flattenedTranslationValues = translationValues.flat();
-
-  if (flattenedTranslationValues.length > 0) {
-    await db.transaction().execute(async (trx) => {
-      // First delete any existing translations for this media
-      await trx
-        .deleteFrom("translations")
-        .where("entity_type", "=", "media")
-        .where("entity_id", "=", mediaId)
-        .execute();
-
-      // Then insert the new translations
-      await trx
-        .insertInto("translations")
-        .values(flattenedTranslationValues)
-        .execute();
+    return c.json({
+      error: "Failed to update media",
+      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
-}
+});

@@ -1,16 +1,20 @@
 import { ColumnType } from "kysely";
-import { TranslationTable } from "./translationType";
-interface Translation {
-  field: "title" | "description";
-  field_value: string;
-  locale: string;
-}
+
 export interface MediaTable {
   id?: string;
   type: string;
   url: string;
   thumbnail_url?: string;
-  translations?: Translation[];
+  created_at: ColumnType<string, never, never>;
+  updated_at: ColumnType<string, never, never>;
+}
+
+export interface MediaTranslationsTable {
+  id?: string;
+  media_id?: string;
+  language_id?: string;
+  title: string;
+  description: string;
   created_at: ColumnType<string, never, never>;
   updated_at: ColumnType<string, never, never>;
 }

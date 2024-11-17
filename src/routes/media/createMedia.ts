@@ -8,30 +8,14 @@ import {
   generateThumbnail,
 } from "../../utils/imageOptimization";
 
-interface MediaMetadata {
-  type: string;
-  fileIndex: number;
-  translations?: {
-    [locale: string]: {
-      title?: string | null;
-      description?: string | null;
-    };
-  };
+interface Translation {
+  title: string;
+  description: string;
 }
 
-interface UploadResult {
-  success: boolean;
-  id?: string;
-  type: string;
-  url: string;
-  thumbnail_url?: string;
-  originalName: string;
-  size: number;
-  translations?: {
-    [locale: string]: {
-      title?: string | null;
-      description?: string | null;
-    };
+interface Metadata {
+  translations: {
+    [key: string]: Translation;
   };
 }
 
@@ -54,14 +38,13 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
     return c.json({ error: "No metadata provided" }, 400);
   }
 
-  let metadata: MediaMetadata;
+  let metadata: Metadata;
   try {
     metadata = JSON.parse(metadataStr as string);
   } catch (error) {
     return c.json({ error: "Invalid metadata format" }, 400);
   }
 
-  const uploadResults: UploadResult[] = [];
   const uploadDir = "./media";
 
   if (!fs.existsSync(uploadDir)) {
@@ -105,143 +88,89 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
 
     fs.writeFileSync(filePath, finalBuffer);
 
-    const savedMedia = await db
-      .insertInto("media")
-      .values({
-        type: type,
-        url,
-        thumbnail_url: isImage ? thumbnailUrl : undefined,
-      })
-      .returning([
-        "id",
-        "type",
-        "url",
-        "thumbnail_url",
-        "created_at",
-        "updated_at",
-      ])
-      .executeTakeFirst();
+    const result = await db.transaction().execute(async (trx) => {
+      // Insert media record
+      const savedMedia = await trx
+        .insertInto("media")
+        .values({
+          type: type,
+          url,
+          thumbnail_url: isImage ? thumbnailUrl : "undefined",
+        })
+        .returning([
+          "id",
+          "type",
+          "url",
+          "thumbnail_url",
+          "created_at",
+          "updated_at",
+        ])
+        .executeTakeFirst();
 
-    if (!savedMedia) {
-      throw new Error("Failed to save media to database");
-    }
+      if (!savedMedia) {
+        throw new Error("Failed to save media");
+      }
 
-    // Save translations if they exist
-    if (metadata.translations && savedMedia.id) {
-      await saveTranslations(savedMedia.id, metadata.translations);
-    }
+      // Insert translations
+      if (metadata.translations) {
+        const translationPromises = Object.entries(metadata.translations).map(
+          async ([locale, translation]) => {
+            // Get language_id from locale
+            const language = await trx
+              .selectFrom("languages")
+              .select("id")
+              .where("locale", "=", locale)
+              .executeTakeFirst();
 
-    uploadResults.push({
+            if (!language) {
+              throw new Error(`Language not found for locale: ${locale}`);
+            }
+
+            // Insert translation
+            return trx
+              .insertInto("media_translations")
+              .values({
+                media_id: savedMedia.id,
+                language_id: language.id,
+                title: translation.title,
+                description: translation.description,
+              })
+              .execute();
+          }
+        );
+
+        await Promise.all(translationPromises);
+      }
+
+      return savedMedia;
+    });
+
+    return c.json({
       success: true,
-      id: savedMedia.id,
-      type: savedMedia.type,
-      url: savedMedia.url,
-      thumbnail_url: savedMedia.thumbnail_url,
-      originalName: originalName,
-      size: finalBuffer.length,
-      translations: metadata.translations,
+      data: result,
     });
   } catch (error) {
     console.error("Error processing file:", error);
 
+    // Remove the uploaded file if it exists
     if (generatedFileName) {
       const filePath = path.join(uploadDir, generatedFileName);
       if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (cleanupError) {
-          console.error(
-            "Error cleaning up file after failed upload:",
-            cleanupError
-          );
-        }
+        fs.unlinkSync(filePath);
       }
     }
 
+    // Remove the thumbnail if it exists
     if (thumbnailUrl) {
-      const thumbnailPath = path.join(".", thumbnailUrl);
-      if (fs.existsSync(thumbnailPath)) {
-        try {
-          fs.unlinkSync(thumbnailPath);
-        } catch (cleanupError) {
-          console.error(
-            "Error cleaning up thumbnail after failed upload:",
-            cleanupError
-          );
-        }
+      const filePath = path.join(uploadDir, thumbnailUrl);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
       }
     }
 
-    uploadResults.push({
-      success: false,
-      id: "",
-      type: type,
-      url: "",
-      thumbnail_url: "",
-      originalName: file.name,
-      size: file.size,
+    return c.json({
+      error: "Failed to process and save media",
+      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
-
-  return c.json({
-    success: uploadResults.some((result) => result.success),
-    totalFiles: uploadResults.length,
-    files: uploadResults,
-  });
 });
-
-// Modified function to save translations
-async function saveTranslations(
-  mediaId: string,
-  translations: MediaMetadata["translations"]
-) {
-  if (!translations) return;
-
-  const translationValues = await Promise.all(
-    Object.entries(translations).map(async ([locale, fields]) => {
-      // Fetch the language_id for the given locale
-      const language = await db
-        .selectFrom("languages")
-        .where("locale", "=", locale)
-        .select("id")
-        .executeTakeFirst();
-
-      if (!language) {
-        console.error(`Language with locale ${locale} not found.`);
-        return [];
-      }
-
-      const languageId = language.id;
-
-      return Object.entries(fields)
-        .filter(([_, value]) => value !== undefined)
-        .map(([field, value]) => ({
-          entity_type: "media",
-          entity_id: mediaId,
-          language_id: languageId, // Use language_id instead of locale
-          field,
-          field_value: value ?? "",
-        }));
-    })
-  );
-
-  // Flatten the array of translation values
-  const flattenedTranslationValues = translationValues.flat();
-
-  if (flattenedTranslationValues.length > 0) {
-    await db.transaction().execute(async (trx) => {
-      // First delete any existing translations for this media
-      await trx
-        .deleteFrom("translations")
-        .where("entity_type", "=", "media")
-        .where("entity_id", "=", mediaId)
-        .execute();
-
-      // Then insert the new translations
-      await trx
-        .insertInto("translations")
-        .values(flattenedTranslationValues)
-        .execute();
-    });
-  }
-}

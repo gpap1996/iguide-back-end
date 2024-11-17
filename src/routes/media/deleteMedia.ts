@@ -26,9 +26,8 @@ export const deleteMedia = new Hono().delete(
       await db.transaction().execute(async (trx) => {
         // Delete translations first (foreign key constraint)
         await trx
-          .deleteFrom("translations")
-          .where("entity_type", "=", "media")
-          .where("entity_id", "=", mediaId)
+          .deleteFrom("media_translations")
+          .where("media_id", "=", mediaId)
           .execute();
 
         // Delete media record
@@ -50,8 +49,6 @@ export const deleteMedia = new Hono().delete(
             }
           }
         } catch (fileError) {
-          // Log file deletion errors but don't fail the transaction
-          // since the database records are already deleted
           console.error("Error deleting physical files:", fileError);
         }
       });
