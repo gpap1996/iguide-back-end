@@ -60,8 +60,8 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
     );
   }
 
-  let generatedFileName = "";
-  let thumbnailUrl = "";
+  let generatedFileName: string | undefined = "";
+  let thumbnailUrl: string | undefined = "";
 
   try {
     const originalName = file.name;
@@ -95,7 +95,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         .values({
           type: type,
           url,
-          thumbnail_url: isImage ? thumbnailUrl : "undefined",
+          thumbnail_url: isImage ? thumbnailUrl : undefined,
         })
         .returning([
           "id",
