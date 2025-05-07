@@ -1,7 +1,7 @@
 -- migrate:up
 -- Create the 'media' table
 CREATE TABLE IF NOT EXISTS media (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     type TEXT NOT NULL,
     url TEXT NOT NULL,
     thumbnail_url TEXT,

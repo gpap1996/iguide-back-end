@@ -1,7 +1,7 @@
 -- migrate:up
 -- create the 'media_translations' table
 create table media_translations (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     media_id UUID NOT NULL REFERENCES media(id) ON DELETE CASCADE,
     language_id UUID NOT NULL REFERENCES languages(id) ON DELETE CASCADE,
     title TEXT,

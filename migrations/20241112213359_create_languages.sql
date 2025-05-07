@@ -1,7 +1,7 @@
 -- migrate:up
 -- create the 'languages' table
 create table languages (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     locale TEXT UNIQUE NOT NULL,
     created_at timestamp default current_timestamp,

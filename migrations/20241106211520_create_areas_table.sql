@@ -1,12 +1,11 @@
 -- migrate:up
 -- Enable the uuid-ossp extension (required for UUID generation)
 -- Create extensions outside of any transaction block
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS citext;
 CREATE EXTENSION IF NOT EXISTS unaccent;
 -- Create the 'areas' table
 CREATE TABLE IF NOT EXISTS areas (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   parent_id UUID,
   weight INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT current_timestamp,
@@ -25,5 +24,4 @@ DROP TRIGGER IF EXISTS update_areas_updated_at ON areas;
 DROP FUNCTION IF EXISTS update_updated_at();
 DROP TABLE IF EXISTS areas;
 DROP EXTENSION IF EXISTS citext;
-DROP EXTENSION IF EXISTS "uuid-ossp";
 DROP EXTENSION IF EXISTS unaccent;
