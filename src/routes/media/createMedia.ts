@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import fs from "fs";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import path from "path";
-import { db } from "../../db/database";
+import { db } from "../../db/schema";
 import {
   optimizeImage,
   generateThumbnail,

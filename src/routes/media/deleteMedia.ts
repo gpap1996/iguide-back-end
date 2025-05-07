@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
-import { db } from "../../db/database";
+import { db } from "../../db/schema";
 
 export const deleteMedia = new Hono().delete(
   "/:id",

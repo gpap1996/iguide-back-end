@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../../db/database";
+import { db } from "../../db/schema";
 import { jsonArrayFrom } from "kysely/helpers/postgres";
 import { sql } from "kysely";
 
@@ -82,11 +82,14 @@ export const getMedia = new Hono().get("/", async (c) => {
           .select([
             "media_translations.title",
             "media_translations.description",
-            "media_translations.language_id",
             eb
               .selectFrom("languages")
               .select("locale")
-              .whereRef("languages.id", "=", "media_translations.language_id")
+              .whereRef(
+                "languages.id",
+                "=",
+                sql.ref("media_translations.language_id")
+              )
               .as("locale"),
           ])
           .whereRef("media_translations.media_id", "=", "media.id")

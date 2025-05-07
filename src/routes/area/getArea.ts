@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../../db/database";
+import { db } from "../../db/schema";
 import { sql } from "kysely";
 
 export const getAreas = new Hono().get("/:id?", async (c) => {

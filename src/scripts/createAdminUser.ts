@@ -1,6 +1,8 @@
 import "dotenv/config";
 import firebaseAuth from "../firebaseAuth";
-import { db } from "../db/database";
+import { db } from "../db";
+import { users } from "../db/schema/users";
+import { create } from "domain";
 
 async function createUserWithRoleAndSaveToDB(email: string, password: string) {
   try {
@@ -25,19 +27,15 @@ async function createUserWithRoleAndSaveToDB(email: string, password: string) {
     const newUser = {
       id: userRecord.uid,
       username: "gpap",
-      nationality: "Greece",
-      country_of_residence: "Greece",
-      email: userRecord.email!,
       role: "admin",
-      first_name: "Giorgos",
-      last_name: "Papapanos",
+      firstName: "Giorgos",
+      lastName: "Papapanos",
+      email: userRecord.email!,
+      nationality: "Greece",
+      countryOfResidence: "Greece",
     };
 
-    const insertedUser = await db
-      .insertInto("users")
-      .values(newUser)
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    const insertedUser = await db.insert(users).values(newUser).returning();
 
     return insertedUser;
   } catch (error) {

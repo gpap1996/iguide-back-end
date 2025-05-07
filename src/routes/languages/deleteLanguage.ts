@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../../db/database";
+import { db } from "../../db/schema";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 
 export const deleteLanguage = new Hono().delete(

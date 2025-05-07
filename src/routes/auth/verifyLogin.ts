@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import firebaseAuth from "../../firebaseAuth";
-import { db } from "../../db/database";
-import { requiresAuth } from "../../middleware/requiresAuth";
-// import { User, NewUser } from "../../types";
+import { db } from "../../db";
+import { users } from "../../db/schema/users";
+import { eq } from "drizzle-orm";
 
 export const authVerifyLogin = new Hono();
 
@@ -11,30 +11,23 @@ authVerifyLogin.get("/verify-login", async (c) => {
   const decodedToken = await firebaseAuth.verifyIdToken(jwt || "");
   const { uid, email } = decodedToken;
 
-  // Try to retrieve the user from the database
-  let user = await db
-    .selectFrom("users")
-    .selectAll()
-    .where("id", "=", uid)
-    .executeTakeFirst();
+  const [user] = await db.select().from(users).where(eq(users.id, uid));
 
-  // If the user does not exist, insert a new one
   if (!user) {
-    user = await db
-      .insertInto("users")
-      .values({ id: uid, email, role: "guest" })
-      .returningAll()
-      .executeTakeFirstOrThrow();
-    console.log("New user created:", user);
+    await db.insert(users).values({
+      id: uid,
+      email: email ?? "", //giati spaei mpales h ts
+      role: "guest",
+    });
 
-    // Set custom claims for the new user
     await setCustomClaims(uid, { userWritten: true });
     await setCustomClaims(uid, { role: "guest" });
-  } else {
-    console.log("Existing user found:", user);
+
+    const [newUser] = await db.select().from(users).where(eq(users.id, uid));
+
+    return c.json(newUser);
   }
 
-  // Return the user data as the response
   return c.json(user);
 });
 
