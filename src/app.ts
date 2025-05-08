@@ -37,7 +37,7 @@ app.onError((err, c) => {
 
   console.error(err);
 
-  return c.text("Something went wrong", 500);
+  return c.text(`Something went wrong ${err}`, 500);
 });
 
 export { app };
