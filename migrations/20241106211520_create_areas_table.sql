@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 -- Create the 'areas' table
 CREATE TABLE IF NOT EXISTS areas (
   id SERIAL PRIMARY KEY,
-  parent_id UUID,
+  parent_id INTEGER,
   weight INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT current_timestamp,
   updated_at TIMESTAMP DEFAULT current_timestamp
