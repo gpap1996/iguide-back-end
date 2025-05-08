@@ -69,12 +69,37 @@ export const getAreas = new Hono().get("/", async (c) => {
   // Fetch paginated items
   let areasQuery = db.query.areas.findMany({
     where,
+    columns: {
+      id: true,
+      weight: true,
+    },
+
     with: {
+      parent: {
+        columns: {
+          id: true,
+        },
+        with: {
+          translations: {
+            columns: {
+              id: true,
+              title: true,
+            },
+            with: {
+              language: {
+                columns: {
+                  locale: true,
+                },
+              },
+            },
+          },
+        },
+      },
+
       translations: {
         columns: {
           id: true,
           title: true,
-          // description: true,
           subtitle: true,
         },
         with: {

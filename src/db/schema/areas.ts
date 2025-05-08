@@ -16,6 +16,11 @@ export const areas = pgTable("areas", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const areaRelations = relations(areas, ({ many }) => ({
+export const areaRelations = relations(areas, ({ one, many }) => ({
   translations: many(area_translations),
+  parent: one(areas, {
+    fields: [areas.parentId],
+    references: [areas.id],
+    relationName: "parent",
+  }),
 }));
