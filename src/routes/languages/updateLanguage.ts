@@ -11,7 +11,7 @@ const schema = z.object({
   locale: z.string({ required_error: "Language code is required" }),
 });
 
-export const updateLanguage = new Hono().patch(
+export const updateLanguage = new Hono().put(
   "/:id",
   requiresAdmin,
   zValidator("json", schema),
@@ -41,7 +41,7 @@ export const updateLanguage = new Hono().patch(
 
       return c.json({
         success: true,
-        message: "Language and translations updated successfully",
+        message: "Language updated successfully",
       });
     } catch (error) {
       console.error("Transaction failed:", error);
