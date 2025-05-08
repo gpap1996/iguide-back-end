@@ -1,6 +1,7 @@
 import { Hono } from "hono";
-import { db } from "../../db/schema";
-import { sql } from "kysely";
+import { db } from "../../db";
+import { languages } from "../../db/schema/languages";
+import { sql } from "drizzle-orm";
 
 // Route to get paginated languages
 export const getLanguages = new Hono().get("/", async (c) => {
@@ -10,7 +11,7 @@ export const getLanguages = new Hono().get("/", async (c) => {
 
   // Handle case where limit is -1 (return all results)
   if (limit === -1) {
-    const items = await db.selectFrom("languages").selectAll().execute();
+    const items = await db.select().from(languages);
     return c.json({
       languages: items,
       pagination: {
@@ -28,9 +29,10 @@ export const getLanguages = new Hono().get("/", async (c) => {
 
   // Count the total items
   const countResult = await db
-    .selectFrom("languages")
-    .select(sql`COUNT(*)`.as("count"))
+    .select({ count: sql<number>`count(*)` })
+    .from(languages)
     .execute();
+
   const totalItems = Number(countResult[0]?.count || 0);
   const totalPages = Math.ceil(totalItems / limit);
 
@@ -46,12 +48,7 @@ export const getLanguages = new Hono().get("/", async (c) => {
   }
 
   // Fetch paginated items
-  const items = await db
-    .selectFrom("languages")
-    .selectAll()
-    .limit(limit)
-    .offset(offset)
-    .execute();
+  const items = await db.select().from(languages).limit(limit).offset(offset);
 
   // Return the items along with pagination details
   return c.json({

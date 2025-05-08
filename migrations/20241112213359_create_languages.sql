@@ -3,7 +3,7 @@
 create table languages (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    locale TEXT UNIQUE NOT NULL,
+    locale TEXT NOT NULL,
     created_at timestamp default current_timestamp,
     updated_at timestamp default current_timestamp
 );

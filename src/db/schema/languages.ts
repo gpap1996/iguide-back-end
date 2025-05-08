@@ -1,6 +1,6 @@
 import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
-export const languagesTable = pgTable("languages", {
+export const languages = pgTable("languages", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   locale: text("locale").notNull().unique(),
