@@ -103,6 +103,7 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
       const updateValues: any = {};
       if (type) updateValues.type = type;
       if (newUrl) updateValues.url = newUrl;
+      if (file && file instanceof File) updateValues.fileName = file.name;
       if (newThumbnailUrl) updateValues.thumbnail_url = newThumbnailUrl;
 
       const [updatedMedia] = await trx

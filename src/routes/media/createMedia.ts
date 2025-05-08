@@ -98,6 +98,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
       const [savedMedia] = await trx
         .insert(media)
         .values({
+          fileName: originalName,
           type: type,
           url,
           thumbnailUrl: isImage ? thumbnailUrl : undefined,

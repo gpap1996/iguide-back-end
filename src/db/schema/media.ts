@@ -5,6 +5,7 @@ import { relations } from "drizzle-orm";
 export const media = pgTable("media", {
   id: serial("id").primaryKey(),
   type: text("type").notNull(),
+  fileName: text("file_name").notNull(),
   url: text("url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
