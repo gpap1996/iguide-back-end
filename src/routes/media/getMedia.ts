@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import { db } from "../../db/schema";
-import { jsonArrayFrom } from "kysely/helpers/postgres";
-import { sql } from "kysely";
+import { db } from "../../db";
+import { sql, count, inArray } from "drizzle-orm";
+import { media_translations } from "../../db/schema/media_translations";
+import { media } from "../../db/schema/media";
 
 export const getMedia = new Hono().get("/", async (c) => {
   const title = c.req.query("title");
@@ -9,28 +10,26 @@ export const getMedia = new Hono().get("/", async (c) => {
   const page = parseInt(c.req.query("page") || "1", 10);
 
   const offset = (page - 1) * limit;
-
-  let mediaIds: string[] = [];
+  let mediaIds: number[] = [];
 
   if (title) {
     const searchPattern = `%${title}%`;
     // Get media IDs that match the title filter in media_translations
     const matchingMediaIds = title
       ? await db
-          .selectFrom("media_translations")
-          .select("media_id")
+          .select({ mediaId: media_translations.mediaId })
+          .from(media_translations)
           .where(
-            sql`unaccent(lower(title)) LIKE unaccent(lower(${searchPattern}))`.$castTo<boolean>()
+            sql<boolean>`unaccent(lower(${media_translations.title})) LIKE unaccent(lower(${searchPattern}))`
           )
-          .execute()
       : [];
 
     //remove duplicates
     mediaIds = Array.from(
       new Set(
         matchingMediaIds
-          .map((item) => item.media_id)
-          .filter((id): id is string => id !== undefined) //because typescript sucks
+          .map((item) => item.mediaId)
+          .filter((id): id is number => id !== undefined) //because typescript sucks
       )
     );
     console.log(mediaIds);
@@ -51,10 +50,9 @@ export const getMedia = new Hono().get("/", async (c) => {
   }
 
   // Count the total items, with optional filtering by title
-  const countQuery = db.selectFrom("media").select(sql`COUNT(*)`.as("count"));
+  const [countQuery] = await db.select({ count: count() }).from(media);
 
-  const countResult = await countQuery.execute();
-  let totalItems = Number(countResult[0]?.count || 0);
+  let totalItems = countQuery.count || 0;
   let totalPages = limit === -1 ? 1 : Math.ceil(totalItems / limit);
 
   // Check if the requested page is valid
@@ -68,38 +66,32 @@ export const getMedia = new Hono().get("/", async (c) => {
     );
   }
 
+  const where = title ? inArray(media.id, mediaIds) : undefined;
   // Fetch paginated items
-  let mediaQuery = db
-    .selectFrom("media")
-    .select((eb) => [
-      "id",
-      "url",
-      "thumbnail_url",
-      "type",
-      jsonArrayFrom(
-        eb
-          .selectFrom("media_translations")
-          .select([
-            "media_translations.title",
-            "media_translations.description",
-            eb
-              .selectFrom("languages")
-              .select("locale")
-              .whereRef(
-                "languages.id",
-                "=",
-                sql.ref("media_translations.language_id")
-              )
-              .as("locale"),
-          ])
-          .whereRef("media_translations.media_id", "=", "media.id")
-      ).as("translations"),
-    ])
-    .$if(limit !== -1, (qb) => qb.limit(limit).offset(offset))
-    .orderBy("created_at", "desc");
+  let mediaQuery = db.query.media.findMany({
+    where,
+    with: {
+      translations: {
+        columns: {
+          id: true,
+          title: true,
+          description: true,
+        },
+        with: {
+          language: {
+            columns: {
+              locale: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: (media, { desc }) => [desc(media.createdAt)],
+    limit: limit !== -1 ? limit : undefined,
+    offset: limit !== -1 ? offset : undefined,
+  });
 
   if (title) {
-    mediaQuery = mediaQuery.where("id", "in", mediaIds);
     totalItems = Number(mediaIds.length);
     totalPages = Math.ceil(totalItems / limit);
   }

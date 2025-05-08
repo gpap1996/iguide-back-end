@@ -2,48 +2,54 @@ import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
-import { db } from "../../db/schema";
-
+import { db } from "../../db";
+import { media } from "../../db/schema/media";
+import { media_translations } from "../../db/schema/media_translations";
+import { languages } from "../../db/schema/languages";
+import { eq } from "drizzle-orm";
 export const deleteMedia = new Hono().delete(
   "/:id",
   requiresAdmin,
   async (c) => {
-    const mediaId = c.req.param("id");
+    const mediaId = parseInt(c.req.param("id"));
 
     try {
       // First, fetch the media record to get file paths
-      const media = await db
-        .selectFrom("media")
-        .where("id", "=", mediaId)
-        .selectAll()
-        .executeTakeFirst();
+      const [foundMedia] = await db
+        .select({
+          id: media.id,
+          thumbnailUrl: media.thumbnailUrl,
+          url: media.url,
+        })
+        .from(media)
+        .where(eq(media.id, mediaId));
 
-      if (!media) {
+      if (!foundMedia) {
         return c.json({ error: "Media not found" }, 404);
       }
 
       // Begin transaction to ensure data consistency
-      await db.transaction().execute(async (trx) => {
+      await db.transaction(async (trx) => {
         // Delete translations first (foreign key constraint)
         await trx
-          .deleteFrom("media_translations")
-          .where("media_id", "=", mediaId)
+          .delete(media_translations)
+          .where(eq(media_translations.mediaId, mediaId))
           .execute();
 
         // Delete media record
-        await trx.deleteFrom("media").where("id", "=", mediaId).execute();
+        await trx.delete(media).where(eq(media.id, mediaId)).execute();
 
         // After successful DB deletion, delete physical files
         try {
           // Delete main file
-          const filePath = path.join(".", media.url);
+          const filePath = path.join(".", foundMedia.url);
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
           }
 
           // Delete thumbnail if it exists
-          if (media.thumbnail_url) {
-            const thumbnailPath = path.join(".", media.thumbnail_url);
+          if (foundMedia.thumbnailUrl) {
+            const thumbnailPath = path.join(".", foundMedia.thumbnailUrl);
             if (fs.existsSync(thumbnailPath)) {
               fs.unlinkSync(thumbnailPath);
             }

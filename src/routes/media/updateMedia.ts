@@ -2,11 +2,16 @@ import { Hono } from "hono";
 import fs from "fs";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import path from "path";
-import { db } from "../../db/schema";
+import { db } from "../../db";
+import { media } from "../../db/schema/media";
+import { media_translations } from "../../db/schema/media_translations";
+import { languages } from "../../db/schema/languages";
+
 import {
   optimizeImage,
   generateThumbnail,
 } from "../../utils/imageOptimization";
+import { eq } from "drizzle-orm";
 
 interface Translation {
   title: string;
@@ -20,7 +25,7 @@ interface Metadata {
 }
 
 export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
-  const mediaId = c.req.param("id");
+  const mediaId = parseInt(c.req.param("id"));
   if (!mediaId) {
     return c.json({ error: "Invalid media ID" }, 400);
   }
@@ -31,11 +36,10 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
   const metadataStr = body.get("metadata");
 
   // Check if media exists
-  const existingMedia = await db
-    .selectFrom("media")
-    .select(["url", "thumbnail_url"])
-    .where("id", "=", mediaId)
-    .executeTakeFirst();
+  const [existingMedia] = await db
+    .select({ url: media.url, thumbnailUrl: media.thumbnailUrl })
+    .from(media)
+    .where(eq(media.id, mediaId));
 
   if (!existingMedia) {
     return c.json({ error: "Media not found" }, 404);
@@ -86,34 +90,26 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
       if (existingMedia.url) {
         oldFilePath = path.join(uploadDir, path.basename(existingMedia.url));
       }
-      if (existingMedia.thumbnail_url) {
+      if (existingMedia.thumbnailUrl) {
         oldThumbnailPath = path.join(
           uploadDir,
-          path.basename(existingMedia.thumbnail_url)
+          path.basename(existingMedia.thumbnailUrl)
         );
       }
     }
 
-    const result = await db.transaction().execute(async (trx) => {
+    const result = await db.transaction(async (trx) => {
       // Update media record
       const updateValues: any = {};
       if (type) updateValues.type = type;
       if (newUrl) updateValues.url = newUrl;
       if (newThumbnailUrl) updateValues.thumbnail_url = newThumbnailUrl;
 
-      const updatedMedia = await trx
-        .updateTable("media")
+      const [updatedMedia] = await trx
+        .update(media)
         .set(updateValues)
-        .where("id", "=", mediaId)
-        .returning([
-          "id",
-          "type",
-          "url",
-          "thumbnail_url",
-          "created_at",
-          "updated_at",
-        ])
-        .executeTakeFirst();
+        .where(eq(media.id, mediaId))
+        .returning();
 
       if (!updatedMedia) {
         throw new Error("Failed to update media");
@@ -123,28 +119,27 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
       if (metadata?.translations) {
         // Delete existing translations
         await trx
-          .deleteFrom("media_translations")
-          .where("media_id", "=", mediaId)
+          .delete(media_translations)
+          .where(eq(media_translations.mediaId, mediaId))
           .execute();
 
         // Insert new translations
         const translationPromises = Object.entries(metadata.translations).map(
           async ([locale, translation]) => {
-            const language = await trx
-              .selectFrom("languages")
-              .select("id")
-              .where("locale", "=", locale)
-              .executeTakeFirst();
+            const [language] = await trx
+              .select({ id: languages.id })
+              .from(languages)
+              .where(eq(languages.locale, locale));
 
             if (!language) {
               throw new Error(`Language not found for locale: ${locale}`);
             }
 
             return trx
-              .insertInto("media_translations")
+              .insert(media_translations)
               .values({
-                media_id: mediaId,
-                language_id: language.id,
+                mediaId: mediaId,
+                languageId: language.id,
                 title: translation.title,
                 description: translation.description,
               })

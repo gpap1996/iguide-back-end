@@ -5,7 +5,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { authRoutes } from "./routes/auth";
 import { languageRoutes } from "./routes/languages";
-// import { mediaRoutes } from "./routes/media";
+import { mediaRoutes } from "./routes/media";
 // import { areaRoutes } from "./routes/area";
 
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -21,13 +21,13 @@ app.use(
   })
 );
 
-// app.use("/media/*", serveStatic({ root: "./" }));
+app.use("/media/*", serveStatic({ root: "./" }));
 
 app
   .basePath("/api")
   .route("/auth", authRoutes)
-  .route("/language", languageRoutes);
-// .route("/media", mediaRoutes)
+  .route("/language", languageRoutes)
+  .route("/media", mediaRoutes);
 // .route("/area", areaRoutes);
 
 app.onError((err, c) => {

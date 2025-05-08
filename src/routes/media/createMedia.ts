@@ -2,11 +2,16 @@ import { Hono } from "hono";
 import fs from "fs";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import path from "path";
-import { db } from "../../db/schema";
+import { db } from "../../db";
+import { media } from "../../db/schema/media";
+import { media_translations } from "../../db/schema/media_translations";
+import { languages } from "../../db/schema/languages";
+
 import {
   optimizeImage,
   generateThumbnail,
 } from "../../utils/imageOptimization";
+import { eq } from "drizzle-orm";
 
 interface Translation {
   title: string;
@@ -88,24 +93,16 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
 
     fs.writeFileSync(filePath, finalBuffer);
 
-    const result = await db.transaction().execute(async (trx) => {
+    const result = await db.transaction(async (trx) => {
       // Insert media record
-      const savedMedia = await trx
-        .insertInto("media")
+      const [savedMedia] = await trx
+        .insert(media)
         .values({
           type: type,
           url,
-          thumbnail_url: isImage ? thumbnailUrl : undefined,
+          thumbnailUrl: isImage ? thumbnailUrl : undefined,
         })
-        .returning([
-          "id",
-          "type",
-          "url",
-          "thumbnail_url",
-          "created_at",
-          "updated_at",
-        ])
-        .executeTakeFirst();
+        .returning();
 
       if (!savedMedia) {
         throw new Error("Failed to save media");
@@ -116,26 +113,22 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         const translationPromises = Object.entries(metadata.translations).map(
           async ([locale, translation]) => {
             // Get language_id from locale
-            const language = await trx
-              .selectFrom("languages")
-              .select("id")
-              .where("locale", "=", locale)
-              .executeTakeFirst();
+            const [language] = await trx
+              .select()
+              .from(languages)
+              .where(eq(languages.locale, locale));
 
             if (!language) {
               throw new Error(`Language not found for locale: ${locale}`);
             }
 
             // Insert translation
-            return trx
-              .insertInto("media_translations")
-              .values({
-                media_id: savedMedia.id,
-                language_id: language.id,
-                title: translation.title,
-                description: translation.description,
-              })
-              .execute();
+            return trx.insert(media_translations).values({
+              mediaId: savedMedia.id,
+              languageId: language.id,
+              title: translation.title,
+              description: translation.description,
+            });
           }
         );
 
