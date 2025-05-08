@@ -12,7 +12,7 @@ export const media_translations = pgTable("media_translations", {
     .notNull()
     .references(() => languages.id, { onDelete: "cascade" }),
   title: text("title"),
-  description: text("description").notNull(),
+  description: text("description"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

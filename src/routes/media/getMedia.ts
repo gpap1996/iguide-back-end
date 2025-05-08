@@ -75,7 +75,7 @@ export const getMedia = new Hono().get("/", async (c) => {
         columns: {
           id: true,
           title: true,
-          description: true,
+          // description: true,
         },
         with: {
           language: {

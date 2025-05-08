@@ -12,7 +12,8 @@ export const area_translations = pgTable("area_translations", {
     .notNull()
     .references(() => languages.id, { onDelete: "cascade" }),
   title: text("title"),
-  description: text("description").notNull(),
+  subtitle: text("subtitle"),
+  description: text("description"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

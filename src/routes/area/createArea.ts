@@ -1,14 +1,26 @@
 import { Hono } from "hono";
-import { db } from "../../db/schema";
+import { db } from "../../db";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { areas, languages, area_translations } from "../../db/schema";
+import { eq } from "drizzle-orm";
 
 const schema = z.object({
-  parent_id: z.string().optional(),
+  parentId: z.number().optional(),
   weight: z.number().optional(),
   images: z.array(z.string()).optional(),
   sound: z.string().optional(),
+  translations: z
+    .record(
+      z.string(), // Language code as the key
+      z.object({
+        title: z.string().optional(),
+        subtitle: z.string().optional(),
+        description: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 export const createArea = new Hono().post(
@@ -17,12 +29,56 @@ export const createArea = new Hono().post(
   zValidator("json", schema),
   async (c) => {
     const area = c.req.valid("json");
-    const res = await db
-      .insertInto("areas")
-      .values(area)
-      .returningAll()
-      .executeTakeFirstOrThrow();
 
-    return c.json(res);
+    try {
+      const result = await db.transaction(async (trx): Promise<any> => {
+        // 1.Insert the area into the areas table
+
+        const [insertedArea] = await trx
+          .insert(areas)
+          .values({ weight: area?.weight, parentId: area?.parentId })
+          .returning();
+
+        // 2.Insert the translations into the area_translations table
+        if (area.translations) {
+          // Insert new translations
+          const translationPromises = Object.entries(area.translations).map(
+            async ([locale, translation]) => {
+              const [language] = await trx
+                .select({ id: languages.id })
+                .from(languages)
+                .where(eq(languages.locale, locale));
+
+              if (!language) {
+                throw new Error(`Language not found for locale: ${locale}`);
+              }
+
+              return trx
+                .insert(area_translations)
+                .values({
+                  areaId: insertedArea.id,
+                  languageId: language.id,
+                  title: translation.title,
+                  subtitle: translation.subtitle,
+                  description: translation.description,
+                })
+                .execute();
+            }
+          );
+
+          await Promise.all(translationPromises);
+        }
+      });
+
+      return c.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      return c.json({
+        error: "Failed to create media",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   }
 );
