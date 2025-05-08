@@ -24,6 +24,7 @@ export const getSingleArea = new Hono().get(":id", async (c) => {
           id: true,
           title: true,
           subtitle: true,
+          description: true,
         },
         with: {
           language: {
