@@ -26,9 +26,9 @@ app.use("/media/*", serveStatic({ root: "./" }));
 app
   .basePath("/api")
   .route("/auth", authRoutes)
-  .route("/language", languageRoutes)
+  .route("/languages", languageRoutes)
   .route("/media", mediaRoutes)
-  .route("/area", areaRoutes);
+  .route("/areas", areaRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

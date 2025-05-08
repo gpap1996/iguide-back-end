@@ -5,8 +5,8 @@ import { requiresAdmin } from "../../middleware/requiresAdmin";
 import { db } from "../../db";
 import { media } from "../../db/schema/media";
 import { media_translations } from "../../db/schema/media_translations";
-import { languages } from "../../db/schema/languages";
 import { eq } from "drizzle-orm";
+
 export const deleteMedia = new Hono().delete(
   "/:id",
   requiresAdmin,
@@ -30,12 +30,6 @@ export const deleteMedia = new Hono().delete(
 
       // Begin transaction to ensure data consistency
       await db.transaction(async (trx) => {
-        // Delete translations first (foreign key constraint)
-        await trx
-          .delete(media_translations)
-          .where(eq(media_translations.mediaId, mediaId))
-          .execute();
-
         // Delete media record
         await trx.delete(media).where(eq(media.id, mediaId)).execute();
 

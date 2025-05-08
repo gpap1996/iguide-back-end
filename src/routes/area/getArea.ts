@@ -86,7 +86,7 @@ export const getAreas = new Hono().get("/", async (c) => {
         },
       },
     },
-    orderBy: (areas, { desc }) => [desc(areas.createdAt)],
+    orderBy: (areas, { asc }) => [asc(areas.weight)],
     limit: limit !== -1 ? limit : undefined,
     offset: limit !== -1 ? offset : undefined,
   });
