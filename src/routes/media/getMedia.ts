@@ -14,13 +14,21 @@ export const getMedia = new Hono().get("/", async (c) => {
 
   if (title) {
     const searchPattern = `%${title}%`;
-    // Get media IDs that match the title filter in media_translations
+    // Get media IDs that match the title filter in media_translations or media.fileName
     const matchingMediaIds = title
       ? await db
           .select({ mediaId: media_translations.mediaId })
           .from(media_translations)
           .where(
             sql<boolean>`unaccent(lower(${media_translations.title})) LIKE unaccent(lower(${searchPattern}))`
+          )
+          .union(
+            db
+              .select({ mediaId: media.id })
+              .from(media)
+              .where(
+                sql<boolean>`unaccent(lower(${media.fileName})) LIKE unaccent(lower(${searchPattern}))`
+              )
           )
       : [];
 
