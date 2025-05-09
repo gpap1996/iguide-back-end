@@ -3,7 +3,7 @@ import path from "path";
 
 const IMAGE_CONFIG = {
   maxWidth: 1200,
-  jpegQuality: 80,
+  jpegQuality: 70,
   thumbnailWidth: 100,
 };
 
