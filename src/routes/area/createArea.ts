@@ -3,7 +3,13 @@ import { db } from "../../db";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { areas, languages, area_translations } from "../../db/schema";
+import {
+  areas,
+  languages,
+  area_translations,
+  media,
+  area_media,
+} from "../../db/schema";
 import { eq } from "drizzle-orm";
 
 const schema = z.object({
@@ -21,6 +27,7 @@ const schema = z.object({
       })
     )
     .optional(),
+  media: z.array(z.number()).optional(),
 });
 
 export const createArea = new Hono().post(
@@ -41,7 +48,6 @@ export const createArea = new Hono().post(
 
         // 2.Insert the translations into the area_translations table
         if (area.translations) {
-          // Insert new translations
           const translationPromises = Object.entries(area.translations).map(
             async ([locale, translation]) => {
               const [language] = await trx
@@ -67,6 +73,30 @@ export const createArea = new Hono().post(
           );
 
           await Promise.all(translationPromises);
+        }
+
+        if (area.media && area.media.length > 0) {
+          const mediaPromises = area.media.map(async (mediaId) => {
+            const [foundMedia] = await db
+              .select({
+                id: media.id,
+              })
+              .from(media)
+              .where(eq(media.id, mediaId));
+
+            if (!media) {
+              throw new Error(`Media not found for id: ${mediaId}`);
+            }
+
+            return trx
+              .insert(area_media)
+              .values({
+                areaId: insertedArea.id,
+                mediaId: foundMedia.id,
+              })
+              .execute();
+          });
+          await Promise.all(mediaPromises);
         }
       });
 

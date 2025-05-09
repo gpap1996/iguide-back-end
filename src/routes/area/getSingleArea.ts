@@ -17,7 +17,6 @@ export const getSingleArea = new Hono().get(":id", async (c) => {
       weight: true,
       parentId: true,
     },
-
     with: {
       translations: {
         columns: {
@@ -34,10 +33,45 @@ export const getSingleArea = new Hono().get(":id", async (c) => {
           },
         },
       },
+
+      area_media: {
+        columns: {
+          mediaId: true,
+        },
+        with: {
+          media: {
+            columns: {
+              id: true,
+              type: true,
+            },
+          },
+        },
+      },
     },
   });
 
+  let area = null;
+  if (result) {
+    const images = result.area_media
+      .filter((m) => m.media.type === "image")
+      .map((m) => m.mediaId);
+
+    const audio = result.area_media.find(
+      (m) => m.media.type === "audio"
+    )?.mediaId;
+
+    // Transform the result and exclude area_media
+    area = {
+      id: result.id,
+      parentId: result?.parentId,
+      weight: result.weight,
+      translations: result.translations,
+      images,
+      audio,
+    };
+  }
+
   return c.json({
-    area: result,
+    area: area,
   });
 });

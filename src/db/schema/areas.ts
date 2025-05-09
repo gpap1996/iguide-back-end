@@ -6,6 +6,7 @@ import {
   AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { area_translations } from "./area_translations";
+import { area_media } from "./area_media";
 import { relations } from "drizzle-orm";
 
 export const areas = pgTable("areas", {
@@ -18,6 +19,7 @@ export const areas = pgTable("areas", {
 
 export const areaRelations = relations(areas, ({ one, many }) => ({
   translations: many(area_translations),
+  area_media: many(area_media),
   parent: one(areas, {
     fields: [areas.parentId],
     references: [areas.id],
