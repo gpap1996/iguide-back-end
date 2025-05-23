@@ -6,6 +6,7 @@ import { deleteFile } from "./deleteFile";
 import { deleteFiles } from "./deleteFiles";
 import { getFiles } from "./getFiles";
 import { getFilesDropdown } from "./getFilesDropdown";
+import { exportFilesToExcel } from "./exportFilesToExcel";
 
 const fileRoutes = new Hono();
 
@@ -15,6 +16,7 @@ fileRoutes.route("/", getFiles);
 fileRoutes.route("/", createFile);
 fileRoutes.route("/mass-delete", deleteFiles);
 fileRoutes.route("/mass-upload", createFiles);
+fileRoutes.route("/export-excel", exportFilesToExcel);
 fileRoutes.route("/", updateFile);
 fileRoutes.route("/", deleteFile);
 
