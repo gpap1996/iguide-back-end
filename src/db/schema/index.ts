@@ -4,4 +4,4 @@ export * from "./files";
 export * from "./file_translations";
 export * from "./areas";
 export * from "./area_translations";
-export * from "./area_media";
+export * from "./area_files";
