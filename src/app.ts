@@ -21,13 +21,13 @@ app.use(
   })
 );
 
-app.use("/file/*", serveStatic({ root: "./" }));
+app.use("/files/*", serveStatic({ root: "./" }));
 
 app
   .basePath("/api")
   .route("/auth", authRoutes)
   .route("/languages", languageRoutes)
-  .route("/file", fileRoutes)
+  .route("/files", fileRoutes)
   .route("/areas", areaRoutes);
 
 app.onError((err, c) => {

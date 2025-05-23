@@ -5,7 +5,7 @@ import { relations } from "drizzle-orm";
 
 export const area_files = pgTable("area_files", {
   id: serial("id").primaryKey(),
-  fileId: integer("fileId")
+  fileId: integer("file_id")
     .notNull()
     .references(() => files.id, { onDelete: "cascade" }),
   areaId: integer("area_id")

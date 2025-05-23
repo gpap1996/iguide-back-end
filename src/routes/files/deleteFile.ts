@@ -31,7 +31,7 @@ export const deleteFile = new Hono().delete(
       // Begin transaction to ensure data consistency
       await db.transaction(async (trx) => {
         // Delete file record
-        await trx.delete(files).where(eq(files.id, fileId)).execute();
+        await trx.delete(files).where(eq(files.id, fileId));
 
         // After successful DB deletion, delete physical files
         try {

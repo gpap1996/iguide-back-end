@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 const schema = z.object({
   parentId: z.number().optional(),
   weight: z.number().optional(),
-  images: z.array(z.string()).optional(),
+  images: z.array(z.number()).optional(),
   sound: z.string().optional(),
   translations: z
     .record(
@@ -27,7 +27,6 @@ const schema = z.object({
       })
     )
     .optional(),
-  files: z.array(z.number()).optional(),
 });
 
 export const createArea = new Hono().post(
@@ -75,8 +74,8 @@ export const createArea = new Hono().post(
           await Promise.all(translationPromises);
         }
 
-        if (area.files && area.files.length > 0) {
-          const filesPromises = area.files.map(async (fileId) => {
+        if (area.images && area.images.length > 0) {
+          const filesPromises = area.images.map(async (fileId) => {
             const [foundFile] = await db
               .select({
                 id: files.id,
