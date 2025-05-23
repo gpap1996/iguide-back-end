@@ -88,15 +88,15 @@ export const exportFilesToExcel = new Hono().get(
 
       // Create headers with more descriptive names for better readability
       const headers: Record<string, string> = {
-        id: "ID",
-        type: "Type",
-        name: "Name",
+        id: "id",
+        type: "type",
+        name: "name",
       };
 
       // Add language-specific headers
       availableLanguages.forEach((lang) => {
-        headers[`title_${lang.locale}`] = `Title (${lang.locale})`;
-        headers[`description_${lang.locale}`] = `Description (${lang.locale})`;
+        headers[`title_${lang.locale}`] = `title_${lang.locale}`;
+        headers[`description_${lang.locale}`] = `description_${lang.locale}`;
       });
 
       // Rename keys in excelData to use the friendly headers
