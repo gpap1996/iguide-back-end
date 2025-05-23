@@ -10,7 +10,7 @@ export const getSingleArea = new Hono().get(":id", async (c) => {
     return c.json({ error: "ID is required" }, 400);
   }
 
-  let [result] = await db.query.areas.findMany({
+  const result = await db.query.areas.findFirst({
     where: eq(areas.id, id),
     columns: {
       id: true,
@@ -33,7 +33,6 @@ export const getSingleArea = new Hono().get(":id", async (c) => {
           },
         },
       },
-
       area_media: {
         columns: {
           mediaId: true,
@@ -50,28 +49,19 @@ export const getSingleArea = new Hono().get(":id", async (c) => {
     },
   });
 
-  let area = null;
-  if (result) {
-    const images = result.area_media
-      .filter((m) => m.media.type === "image")
-      .map((m) => m.mediaId);
-
-    const audio = result.area_media.find(
-      (m) => m.media.type === "audio"
-    )?.mediaId;
-
-    // Transform the result and exclude area_media
-    area = {
-      id: result.id,
-      parentId: result?.parentId,
-      weight: result.weight,
-      translations: result.translations,
-      images,
-      audio,
-    };
+  if (!result) {
+    return c.json({ area: null });
   }
 
-  return c.json({
-    area: area,
-  });
+  const { area_media, ...areaData } = result;
+
+  const area = {
+    ...areaData,
+    images: area_media
+      .filter((m) => m.media.type === "image")
+      .map((m) => m.mediaId),
+    audio: area_media.find((m) => m.media.type === "audio")?.mediaId || null,
+  };
+
+  return c.json({ area });
 });
