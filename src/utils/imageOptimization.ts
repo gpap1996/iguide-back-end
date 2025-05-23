@@ -29,7 +29,7 @@ export async function generateThumbnail(
   const randomString = Math.random().toString(36).substring(7);
   const extension = path.extname(originalName);
   const thumbnailFileName = `thumb-${timestamp}-${randomString}${extension}`;
-  const thumbnailPath = path.join("./media", thumbnailFileName);
+  const thumbnailPath = path.join("./files", thumbnailFileName);
 
   await sharp(buffer)
     .resize({
@@ -39,5 +39,5 @@ export async function generateThumbnail(
     .jpeg({ quality: 70 })
     .toFile(thumbnailPath);
 
-  return `/media/${thumbnailFileName}`;
+  return `/files/${thumbnailFileName}`;
 }

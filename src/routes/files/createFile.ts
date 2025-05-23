@@ -3,8 +3,8 @@ import fs from "fs";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import path from "path";
 import { db } from "../../db";
-import { media } from "../../db/schema/media";
-import { media_translations } from "../../db/schema/media_translations";
+import { files } from "../../db/schema/files";
+import { file_translations } from "../../db/schema/file_translations";
 import { languages } from "../../db/schema/languages";
 
 import {
@@ -24,8 +24,8 @@ interface Metadata {
   };
 }
 
-// Create media endpoint
-export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
+// Create files endpoint
+export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
   const body = await c.req.formData();
   const file = body.get("file");
   const type = body.get("type")?.toString();
@@ -50,7 +50,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
     return c.json({ error: "Invalid metadata format" }, 400);
   }
 
-  const uploadDir = "./media";
+  const uploadDir = "./files";
 
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -89,14 +89,14 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
     }
 
     const filePath = path.join(uploadDir, generatedFileName);
-    const url = `/media/${generatedFileName}`;
+    const url = `/files/${generatedFileName}`;
 
     fs.writeFileSync(filePath, finalBuffer);
 
     const result = await db.transaction(async (trx) => {
-      // Insert media record
-      const [savedMedia] = await trx
-        .insert(media)
+      // Insert files record
+      const [savedFile] = await trx
+        .insert(files)
         .values({
           fileName: originalName,
           type: type,
@@ -105,8 +105,8 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         })
         .returning();
 
-      if (!savedMedia) {
-        throw new Error("Failed to save media");
+      if (!savedFile) {
+        throw new Error("Failed to save file");
       }
 
       // Insert translations
@@ -124,8 +124,8 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
             }
 
             // Insert translation
-            return trx.insert(media_translations).values({
-              mediaId: savedMedia.id,
+            return trx.insert(file_translations).values({
+              fileId: savedFile.id,
               languageId: language.id,
               title: translation.title,
               description: translation.description,
@@ -136,7 +136,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
         await Promise.all(translationPromises);
       }
 
-      return savedMedia;
+      return savedFile;
     });
 
     return c.json({
@@ -163,7 +163,7 @@ export const createMedia = new Hono().post("/", requiresAdmin, async (c) => {
     }
 
     return c.json({
-      error: "Failed to process and save media",
+      error: "Failed to process and save file",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

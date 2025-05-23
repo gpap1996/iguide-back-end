@@ -7,8 +7,8 @@ import {
   areas,
   languages,
   area_translations,
-  media,
-  area_media,
+  files,
+  area_files,
 } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
@@ -27,7 +27,7 @@ const schema = z.object({
       })
     )
     .optional(),
-  media: z.array(z.number()).optional(),
+  files: z.array(z.number()).optional(),
 });
 
 export const createArea = new Hono().post(
@@ -75,28 +75,28 @@ export const createArea = new Hono().post(
           await Promise.all(translationPromises);
         }
 
-        if (area.media && area.media.length > 0) {
-          const mediaPromises = area.media.map(async (mediaId) => {
-            const [foundMedia] = await db
+        if (area.files && area.files.length > 0) {
+          const filesPromises = area.files.map(async (fileId) => {
+            const [foundFile] = await db
               .select({
-                id: media.id,
+                id: files.id,
               })
-              .from(media)
-              .where(eq(media.id, mediaId));
+              .from(files)
+              .where(eq(files.id, fileId));
 
-            if (!media) {
-              throw new Error(`Media not found for id: ${mediaId}`);
+            if (!foundFile) {
+              throw new Error(`File not found for id: ${fileId}`);
             }
 
             return trx
-              .insert(area_media)
+              .insert(area_files)
               .values({
                 areaId: insertedArea.id,
-                mediaId: foundMedia.id,
+                fileId: foundFile.id,
               })
               .execute();
           });
-          await Promise.all(mediaPromises);
+          await Promise.all(filesPromises);
         }
       });
 
@@ -106,7 +106,7 @@ export const createArea = new Hono().post(
       });
     } catch (error) {
       return c.json({
-        error: "Failed to create media",
+        error: "Failed to create file",
         details: error instanceof Error ? error.message : "Unknown error",
       });
     }

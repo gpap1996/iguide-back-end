@@ -1,13 +1,13 @@
 import { pgTable, integer, serial, text, timestamp } from "drizzle-orm/pg-core";
-import { media } from "./media";
+import { files } from "./files";
 import { languages } from "./languages";
 import { relations } from "drizzle-orm";
 
-export const media_translations = pgTable("media_translations", {
+export const file_translations = pgTable("file_translations", {
   id: serial("id").primaryKey(),
-  mediaId: integer("media_id")
+  fileId: integer("file_id")
     .notNull()
-    .references(() => media.id, { onDelete: "cascade" }),
+    .references(() => files.id, { onDelete: "cascade" }),
   languageId: integer("language_id")
     .notNull()
     .references(() => languages.id, { onDelete: "cascade" }),
@@ -17,15 +17,15 @@ export const media_translations = pgTable("media_translations", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const mediaTranslationsRelations = relations(
-  media_translations,
+export const filesTranslationsRelations = relations(
+  file_translations,
   ({ one }) => ({
-    media: one(media, {
-      fields: [media_translations.mediaId],
-      references: [media.id],
+    files: one(files, {
+      fields: [file_translations.fileId],
+      references: [files.id],
     }),
     language: one(languages, {
-      fields: [media_translations.languageId],
+      fields: [file_translations.languageId],
       references: [languages.id],
     }),
   })

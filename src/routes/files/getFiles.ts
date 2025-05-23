@@ -1,51 +1,51 @@
 import { Hono } from "hono";
 import { db } from "../../db";
 import { sql, count, inArray } from "drizzle-orm";
-import { media_translations } from "../../db/schema/media_translations";
-import { media } from "../../db/schema/media";
+import { file_translations } from "../../db/schema/file_translations";
+import { files } from "../../db/schema/files";
 
-export const getMedia = new Hono().get("/", async (c) => {
+export const getFiles = new Hono().get("/", async (c) => {
   const title = c.req.query("title");
   const limit = parseInt(c.req.query("limit") || "10", 10);
   const page = parseInt(c.req.query("page") || "1", 10);
 
   const offset = (page - 1) * limit;
-  let mediaIds: number[] = [];
+  let fileIds: number[] = [];
 
   if (title) {
     const searchPattern = `%${title}%`;
-    // Get media IDs that match the title filter in media_translations or media.fileName
-    const matchingMediaIds = title
+    // Get files IDs that match the title filter in file_translations or files.fileName
+    const matchingfileIds = title
       ? await db
-          .select({ mediaId: media_translations.mediaId })
-          .from(media_translations)
+          .select({ fileId: file_translations.fileId })
+          .from(file_translations)
           .where(
-            sql<boolean>`unaccent(lower(${media_translations.title})) LIKE unaccent(lower(${searchPattern}))`
+            sql<boolean>`unaccent(lower(${file_translations.title})) LIKE unaccent(lower(${searchPattern}))`
           )
           .union(
             db
-              .select({ mediaId: media.id })
-              .from(media)
+              .select({ fileId: files.id })
+              .from(files)
               .where(
-                sql<boolean>`unaccent(lower(${media.fileName})) LIKE unaccent(lower(${searchPattern}))`
+                sql<boolean>`unaccent(lower(${files.fileName})) LIKE unaccent(lower(${searchPattern}))`
               )
           )
       : [];
 
     //remove duplicates
-    mediaIds = Array.from(
+    fileIds = Array.from(
       new Set(
-        matchingMediaIds
-          .map((item) => item.mediaId)
+        matchingfileIds
+          .map((item) => item.fileId)
           .filter((id): id is number => id !== undefined) //because typescript sucks
       )
     );
-    console.log(mediaIds);
+    console.log(fileIds);
 
     // No matches for the title: totalItems is 0, and no need to query further
-    if (mediaIds.length === 0) {
+    if (fileIds.length === 0) {
       return c.json({
-        media: [],
+        files: [],
         pagination: {
           limit,
           page,
@@ -58,7 +58,7 @@ export const getMedia = new Hono().get("/", async (c) => {
   }
 
   // Count the total items, with optional filtering by title
-  const [countQuery] = await db.select({ count: count() }).from(media);
+  const [countQuery] = await db.select({ count: count() }).from(files);
 
   let totalItems = countQuery.count || 0;
   let totalPages = limit === -1 ? 1 : Math.ceil(totalItems / limit);
@@ -74,9 +74,9 @@ export const getMedia = new Hono().get("/", async (c) => {
     );
   }
 
-  const where = title ? inArray(media.id, mediaIds) : undefined;
+  const where = title ? inArray(files.id, fileIds) : undefined;
   // Fetch paginated items
-  let mediaQuery = db.query.media.findMany({
+  let filesQuery = db.query.files.findMany({
     where,
     with: {
       translations: {
@@ -94,20 +94,20 @@ export const getMedia = new Hono().get("/", async (c) => {
         },
       },
     },
-    orderBy: (media, { desc }) => [desc(media.createdAt)],
+    orderBy: (files, { desc }) => [desc(files.createdAt)],
     limit: limit !== -1 ? limit : undefined,
     offset: limit !== -1 ? offset : undefined,
   });
 
   if (title) {
-    totalItems = Number(mediaIds.length);
+    totalItems = Number(fileIds.length);
     totalPages = Math.ceil(totalItems / limit);
   }
 
-  const items = await mediaQuery.execute();
+  const items = await filesQuery.execute();
 
   return c.json({
-    media: items,
+    files: items,
     pagination: {
       limit,
       page,

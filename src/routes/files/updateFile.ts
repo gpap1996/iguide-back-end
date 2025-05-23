@@ -3,8 +3,8 @@ import fs from "fs";
 import { requiresAdmin } from "../../middleware/requiresAdmin";
 import path from "path";
 import { db } from "../../db";
-import { media } from "../../db/schema/media";
-import { media_translations } from "../../db/schema/media_translations";
+import { files } from "../../db/schema/files";
+import { file_translations } from "../../db/schema/file_translations";
 import { languages } from "../../db/schema/languages";
 
 import {
@@ -24,10 +24,10 @@ interface Metadata {
   };
 }
 
-export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
-  const mediaId = parseInt(c.req.param("id"));
-  if (!mediaId) {
-    return c.json({ error: "Invalid media ID" }, 400);
+export const updateFile = new Hono().put("/:id", requiresAdmin, async (c) => {
+  const fileId = parseInt(c.req.param("id"));
+  if (!fileId) {
+    return c.json({ error: "Invalid file ID" }, 400);
   }
 
   const body = await c.req.formData();
@@ -35,14 +35,14 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
   const type = body.get("type")?.toString();
   const metadataStr = body.get("metadata");
 
-  // Check if media exists
-  const [existingMedia] = await db
-    .select({ url: media.url, thumbnailUrl: media.thumbnailUrl })
-    .from(media)
-    .where(eq(media.id, mediaId));
+  // Check if file exists
+  const [existingFile] = await db
+    .select({ url: files.url, thumbnailUrl: files.thumbnailUrl })
+    .from(files)
+    .where(eq(files.id, fileId));
 
-  if (!existingMedia) {
-    return c.json({ error: "Media not found" }, 404);
+  if (!existingFile) {
+    return c.json({ error: "File not found" }, 404);
   }
 
   let metadata: Metadata | undefined;
@@ -54,7 +54,7 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
     }
   }
 
-  const uploadDir = "./media";
+  const uploadDir = "./files";
   let newUrl: string | undefined;
   let newThumbnailUrl: string | undefined;
   let oldFilePath: string | undefined;
@@ -82,46 +82,46 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
       }
 
       const newFilePath = path.join(uploadDir, newFileName);
-      newUrl = `/media/${newFileName}`;
+      newUrl = `/files/${newFileName}`;
 
       fs.writeFileSync(newFilePath, finalBuffer);
 
       // Store old file paths for cleanup
-      if (existingMedia.url) {
-        oldFilePath = path.join(uploadDir, path.basename(existingMedia.url));
+      if (existingFile.url) {
+        oldFilePath = path.join(uploadDir, path.basename(existingFile.url));
       }
-      if (existingMedia.thumbnailUrl) {
+      if (existingFile.thumbnailUrl) {
         oldThumbnailPath = path.join(
           uploadDir,
-          path.basename(existingMedia.thumbnailUrl)
+          path.basename(existingFile.thumbnailUrl)
         );
       }
     }
 
     const result = await db.transaction(async (trx) => {
-      // Update media record
+      // Update mefilesdia record
       const updateValues: any = {};
       if (type) updateValues.type = type;
       if (newUrl) updateValues.url = newUrl;
       if (newThumbnailUrl) updateValues.thumbnailUrl = newThumbnailUrl;
       if (file && file instanceof File) updateValues.fileName = file.name;
 
-      const [updatedMedia] = await trx
-        .update(media)
+      const [updatedFile] = await trx
+        .update(files)
         .set(updateValues)
-        .where(eq(media.id, mediaId))
+        .where(eq(files.id, fileId))
         .returning();
 
-      if (!updatedMedia) {
-        throw new Error("Failed to update media");
+      if (!updatedFile) {
+        throw new Error("Failed to update file");
       }
 
       // Update translations if provided
       if (metadata?.translations) {
         // Delete existing translations
         await trx
-          .delete(media_translations)
-          .where(eq(media_translations.mediaId, mediaId))
+          .delete(file_translations)
+          .where(eq(file_translations.fileId, fileId))
           .execute();
 
         // Insert new translations
@@ -137,9 +137,9 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
             }
 
             return trx
-              .insert(media_translations)
+              .insert(file_translations)
               .values({
-                mediaId: mediaId,
+                fileId: fileId,
                 languageId: language.id,
                 title: translation.title,
                 description: translation.description,
@@ -151,7 +151,7 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
         await Promise.all(translationPromises);
       }
 
-      return updatedMedia;
+      return updatedFile;
     });
 
     // Clean up old files after successful transaction
@@ -167,7 +167,7 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
       data: result,
     });
   } catch (error) {
-    console.error("Error updating media:", error);
+    console.error("Error updating file:", error);
 
     // Clean up new file if transaction failed
     if (newUrl) {
@@ -178,7 +178,7 @@ export const updateMedia = new Hono().put("/:id", requiresAdmin, async (c) => {
     }
 
     return c.json({
-      error: "Failed to update media",
+      error: "Failed to update file",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

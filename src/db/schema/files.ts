@@ -1,8 +1,8 @@
 import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
-import { media_translations } from "./media_translations";
+import { file_translations } from "./file_translations";
 import { relations } from "drizzle-orm";
 
-export const media = pgTable("media", {
+export const files = pgTable("files", {
   id: serial("id").primaryKey(),
   type: text("type").notNull(),
   fileName: text("file_name").notNull(),
@@ -12,6 +12,6 @@ export const media = pgTable("media", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const mediaRelations = relations(media, ({ many }) => ({
-  translations: many(media_translations),
+export const filesRelations = relations(files, ({ many }) => ({
+  translations: many(file_translations),
 }));
