@@ -2,7 +2,6 @@
 -- create the 'languages' table
 create table languages (
     id SERIAL PRIMARY KEY,
-    is_default BOOLEAN NOT NULL DEFAULT false,
     name TEXT NOT NULL,
     locale TEXT NOT NULL,
     created_at timestamp default current_timestamp,
