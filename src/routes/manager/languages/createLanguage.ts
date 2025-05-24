@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "@/db";
 import { languages } from "@/db/schema/languages";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -12,12 +12,28 @@ const schema = z.object({
 
 export const createLanguage = new Hono().post(
   "/",
-  requiresAdmin,
+  requiresManager,
   zValidator("json", schema),
   async (c) => {
+    const currentUser = c.get("currentUser");
     const language = c.req.valid("json");
-    const res = await db.insert(languages).values(language);
 
-    return c.json(res);
+    if (!currentUser?.projectId) {
+      return c.json({ error: "Project ID not found for current user" }, 400);
+    }
+
+    try {
+      const [createdLanguage] = await db
+        .insert(languages)
+        .values({ ...language, projectId: currentUser.projectId })
+        .returning();
+      return c.json({
+        message: "Language created successfully",
+        language: createdLanguage,
+      });
+    } catch (e) {
+      console.error("Error creating language:", e);
+      return c.json({ error: e, message: "Error creating language" }, 500);
+    }
   }
 );

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "@/db";
 import { languages } from "@/db/schema/languages";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -13,7 +13,7 @@ const schema = z.object({
 
 export const updateLanguage = new Hono().put(
   "/:id",
-  requiresAdmin,
+  requiresManager,
   zValidator("json", schema),
   async (c) => {
     const newLanguage = c.req.valid("json");

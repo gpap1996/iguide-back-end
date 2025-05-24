@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 
 declare module "hono" {
   interface ContextVariableMap {
-    currentUser?: { user_id: string; email: string; projectId?: number };
+    currentUser: { user_id: string; email: string; projectId?: number };
   }
 }
 

@@ -1,17 +1,24 @@
 import { Hono } from "hono";
 import { db } from "@/db";
 import { languages } from "@/db/schema/languages";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { requiresManager } from "@/middleware/requiresManager";
 
-// Route to get paginated languages
-export const getLanguages = new Hono().get("/", async (c) => {
-  // Get limit and page parameters from the query, with default values
+export const getLanguages = new Hono().get("/", requiresManager, async (c) => {
+  const currentUser = c.get("currentUser");
   const limit = parseInt(c.req.query("limit") || "10", 10);
   const page = parseInt(c.req.query("page") || "1", 10);
 
+  if (!currentUser?.projectId) {
+    return c.json({ error: "Project ID not found for current user" }, 400);
+  }
+
   // Handle case where limit is -1 (return all results)
   if (limit === -1) {
-    const items = await db.select().from(languages);
+    const items = await db
+      .select()
+      .from(languages)
+      .where(eq(languages.projectId, currentUser.projectId));
     return c.json({
       languages: items,
       pagination: {
@@ -31,7 +38,7 @@ export const getLanguages = new Hono().get("/", async (c) => {
   const countResult = await db
     .select({ count: sql<number>`count(*)` })
     .from(languages)
-    .execute();
+    .where(eq(languages.projectId, currentUser.projectId));
 
   const totalItems = Number(countResult[0]?.count || 0);
   const totalPages = Math.ceil(totalItems / limit);
@@ -48,7 +55,12 @@ export const getLanguages = new Hono().get("/", async (c) => {
   }
 
   // Fetch paginated items
-  const items = await db.select().from(languages).limit(limit).offset(offset);
+  const items = await db
+    .select()
+    .from(languages)
+    .limit(limit)
+    .offset(offset)
+    .where(eq(languages.projectId, currentUser.projectId));
 
   // Return the items along with pagination details
   return c.json({
