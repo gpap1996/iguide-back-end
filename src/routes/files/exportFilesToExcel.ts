@@ -88,7 +88,7 @@ export const exportFilesToExcel = new Hono().get(
 
       // Create headers with more descriptive names for better readability
       const headers: Record<string, string> = {
-        id: "id",
+        id: "id", // Keep these column names consistent for import
         type: "type",
         name: "name",
       };
@@ -126,9 +126,7 @@ export const exportFilesToExcel = new Hono().get(
         }
         colWidths.push({ wch: Math.min(maxLength + 2, 50) }); // Limit width to 50 chars
       }
-      worksheet["!cols"] = colWidths;
-
-      // Improve cell formatting
+      worksheet["!cols"] = colWidths; // Improve cell formatting
       const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
       for (let R = range.s.r; R <= range.e.r; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
@@ -141,6 +139,13 @@ export const exportFilesToExcel = new Hono().get(
             cell.s = {
               font: { bold: true },
               fill: { fgColor: { rgb: "ECECEC" } },
+            };
+          }
+
+          // Lock the id, type, and name columns (first 3 columns) by adding gray background
+          if (C < 3 && R > 0) {
+            cell.s = {
+              fill: { fgColor: { rgb: "F2F2F2" } },
             };
           }
         }
