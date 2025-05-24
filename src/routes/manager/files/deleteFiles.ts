@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { db } from "@/db";
 import { files } from "@/db/schema/files";
 import { file_translations } from "@/db/schema/file_translations";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 
 const schema = z.object({
   ids: z.array(z.number()),
@@ -16,7 +16,7 @@ const schema = z.object({
 // Use Hono app style
 export const deleteFiles = new Hono().post(
   "/",
-  requiresAdmin,
+  requiresManager,
   zValidator("json", schema),
   async (c) => {
     const { ids } = c.req.valid("json");

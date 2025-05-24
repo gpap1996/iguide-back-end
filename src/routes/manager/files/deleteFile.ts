@@ -1,17 +1,23 @@
 import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import { db } from "@/db";
 import { files } from "@/db/schema/files";
-import { file_translations } from "@/db/schema/file_translations";
 import { eq } from "drizzle-orm";
 
 export const deleteFile = new Hono().delete(
   "/:id",
-  requiresAdmin,
+  requiresManager,
   async (c) => {
+    const currentUser = c.get("currentUser");
     const fileId = parseInt(c.req.param("id"));
+
+    if (!currentUser?.projectId) {
+      return c.json({ error: "Project ID not found for current user" }, 400);
+    }
+
+    const projectId = Number(currentUser.projectId);
 
     try {
       // First, fetch the file record to get file paths

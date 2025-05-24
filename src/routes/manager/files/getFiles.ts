@@ -1,17 +1,22 @@
 import { Hono } from "hono";
 import { db } from "@/db";
-import { sql, count, inArray } from "drizzle-orm";
+import { sql, count, inArray, and, eq } from "drizzle-orm";
 import { file_translations } from "@/db/schema/file_translations";
 import { files } from "@/db/schema/files";
+import { requiresManager } from "@/middleware/requiresManager";
 
-export const getFiles = new Hono().get("/", async (c) => {
+export const getFiles = new Hono().get("/", requiresManager, async (c) => {
+  const currentUser = c.get("currentUser");
   const title = c.req.query("title");
   const limit = parseInt(c.req.query("limit") || "10", 10);
   const page = parseInt(c.req.query("page") || "1", 10);
 
+  if (!currentUser?.projectId) {
+    return c.json({ error: "Project ID not found for current user" }, 400);
+  }
+
   const offset = (page - 1) * limit;
   let fileIds: number[] = [];
-
   if (title) {
     const searchPattern = `%${title}%`;
     // Get files IDs that match the title filter in file_translations or files.name
@@ -20,14 +25,20 @@ export const getFiles = new Hono().get("/", async (c) => {
           .select({ fileId: file_translations.fileId })
           .from(file_translations)
           .where(
-            sql<boolean>`unaccent(lower(${file_translations.title})) LIKE unaccent(lower(${searchPattern}))`
+            and(
+              sql<boolean>`unaccent(lower(${file_translations.title})) LIKE unaccent(lower(${searchPattern}))`,
+              eq(file_translations.projectId, currentUser.projectId)
+            )
           )
           .union(
             db
               .select({ fileId: files.id })
               .from(files)
               .where(
-                sql<boolean>`unaccent(lower(${files.name})) LIKE unaccent(lower(${searchPattern}))`
+                and(
+                  sql<boolean>`unaccent(lower(${files.name})) LIKE unaccent(lower(${searchPattern}))`,
+                  eq(files.projectId, currentUser.projectId)
+                )
               )
           )
       : [];
@@ -40,7 +51,6 @@ export const getFiles = new Hono().get("/", async (c) => {
           .filter((id): id is number => id !== undefined) //because typescript sucks
       )
     );
-    console.log(fileIds);
 
     // No matches for the title: totalItems is 0, and no need to query further
     if (fileIds.length === 0) {
@@ -58,7 +68,10 @@ export const getFiles = new Hono().get("/", async (c) => {
   }
 
   // Count the total items, with optional filtering by title
-  const [countQuery] = await db.select({ count: count() }).from(files);
+  const [countQuery] = await db
+    .select({ count: count() })
+    .from(files)
+    .where(eq(files.projectId, currentUser.projectId));
 
   let totalItems = countQuery.count || 0;
   let totalPages = limit === -1 ? 1 : Math.ceil(totalItems / limit);
@@ -74,7 +87,12 @@ export const getFiles = new Hono().get("/", async (c) => {
     );
   }
 
-  const where = title ? inArray(files.id, fileIds) : undefined;
+  const where = title
+    ? and(
+        inArray(files.id, fileIds),
+        eq(files.projectId, currentUser.projectId)
+      )
+    : eq(files.projectId, currentUser.projectId);
   // Fetch paginated items
   let filesQuery = db.query.files.findMany({
     where,

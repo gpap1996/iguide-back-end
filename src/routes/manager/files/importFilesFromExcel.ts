@@ -2,8 +2,7 @@ import { Hono } from "hono";
 import { db } from "@/db";
 import { file_translations } from "@/db/schema/file_translations";
 import { files } from "@/db/schema/files";
-import { languages } from "@/db/schema/languages";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import * as XLSX from "xlsx";
 import { eq, and, inArray } from "drizzle-orm";
 
@@ -18,9 +17,14 @@ interface TranslationUpdate {
 
 export const importFilesFromExcel = new Hono().post(
   "/",
-  requiresAdmin,
+  requiresManager,
   async (c) => {
     try {
+      const currentUser = c.get("currentUser");
+      if (!currentUser?.projectId) {
+        return c.json({ error: "Project ID not found for current user" }, 400);
+      }
+      const projectId = Number(currentUser.projectId);
       // Get form data with Excel file
       const formData = await c.req.formData();
       const excelFile = formData.get("file") as File | null;
@@ -60,6 +64,7 @@ export const importFilesFromExcel = new Hono().post(
 
       // Get available languages from database
       const availableLanguages = await db.query.languages.findMany({
+        where: (languages, { eq }) => eq(languages.projectId, projectId),
         columns: {
           id: true,
           locale: true,
@@ -277,6 +282,7 @@ export const importFilesFromExcel = new Hono().post(
                 } else {
                   // Insert new translation
                   return tx.insert(file_translations).values({
+                    projectId,
                     fileId: translation.fileId,
                     languageId: translation.languageId,
                     title: translation.title,

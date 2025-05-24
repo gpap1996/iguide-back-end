@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import fs from "fs";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import path from "path";
 import { db } from "@/db";
 import { files } from "@/db/schema/files";
@@ -8,7 +8,7 @@ import { file_translations } from "@/db/schema/file_translations";
 import { languages } from "@/db/schema/languages";
 
 import { optimizeImage, generateThumbnail } from "@/utils/imageOptimization";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 interface Translation {
   title: string;
@@ -22,11 +22,18 @@ interface Metadata {
 }
 
 // Create files endpoint
-export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
+export const createFile = new Hono().post("/", requiresManager, async (c) => {
+  const currentUser = c.get("currentUser");
   const body = await c.req.formData();
   const file = body.get("file");
   const type = body.get("type")?.toString();
   const metadataStr = body.get("metadata");
+
+  if (!currentUser?.projectId) {
+    return c.json({ error: "Project ID not found for current user" }, 400);
+  }
+
+  const projectId = Number(currentUser.projectId);
 
   if (!file) {
     return c.json({ error: "No file provided" }, 400);
@@ -47,7 +54,7 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
     return c.json({ error: "Invalid metadata format" }, 400);
   }
 
-  const uploadDir = "./files";
+  const uploadDir = `./files/project-${projectId}`;
 
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -82,11 +89,11 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
 
     if (isImage) {
       finalBuffer = await optimizeImage(buffer);
-      thumbnailPath = await generateThumbnail(buffer, originalName);
+      thumbnailPath = await generateThumbnail(buffer, originalName, projectId);
     }
 
     const filePath = path.join(uploadDir, generatedFileName);
-    const url = `/files/${generatedFileName}`;
+    const url = `/files/project-${projectId}/${generatedFileName}`;
 
     fs.writeFileSync(filePath, finalBuffer);
 
@@ -95,6 +102,7 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
       const [savedFile] = await trx
         .insert(files)
         .values({
+          projectId,
           name: originalName,
           type: type,
           path: url,
@@ -114,7 +122,12 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
             const [language] = await trx
               .select()
               .from(languages)
-              .where(eq(languages.locale, locale));
+              .where(
+                and(
+                  eq(languages.locale, locale),
+                  eq(languages.projectId, projectId)
+                )
+              );
 
             if (!language) {
               return c.json(
@@ -128,6 +141,7 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
 
             // Insert translation
             return trx.insert(file_translations).values({
+              projectId,
               fileId: savedFile.id,
               languageId: language.id,
               title: translation.title,

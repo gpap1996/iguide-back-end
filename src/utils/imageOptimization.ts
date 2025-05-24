@@ -23,13 +23,17 @@ export async function optimizeImage(buffer: Buffer): Promise<Buffer> {
 
 export async function generateThumbnail(
   buffer: Buffer,
-  originalName: string
+  originalName: string,
+  projectId: number
 ): Promise<string> {
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(7);
   const extension = path.extname(originalName);
   const thumbnailFileName = `thumb-${timestamp}-${randomString}${extension}`;
-  const thumbnailPath = path.join("./files", thumbnailFileName);
+  const thumbnailPath = path.join(
+    `./files/project-${projectId}`,
+    thumbnailFileName
+  );
 
   await sharp(buffer)
     .resize({
@@ -39,5 +43,5 @@ export async function generateThumbnail(
     .jpeg({ quality: 70 })
     .toFile(thumbnailPath);
 
-  return `/files/${thumbnailFileName}`;
+  return `/files/project-${projectId}/${thumbnailFileName}`;
 }

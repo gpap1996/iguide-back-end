@@ -3,16 +3,20 @@ import fs from "fs";
 import path from "path";
 import { db } from "@/db";
 import { files } from "@/db/schema/files";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import { optimizeImage, generateThumbnail } from "@/utils/imageOptimization";
 
 // Create multiple files endpoint
-export const createFiles = new Hono().post("/", requiresAdmin, async (c) => {
-  console.log("Mass upload endpoint hit");
+export const createFiles = new Hono().post("/", requiresManager, async (c) => {
   try {
+    const currentUser = c.get("currentUser");
     const body = await c.req.formData();
     const fileEntries = body.getAll("files");
     const type = body.get("type")?.toString();
+
+    if (!currentUser?.projectId) {
+      return c.json({ error: "Project ID not found for current user" }, 400);
+    }
 
     if (!fileEntries || fileEntries.length === 0) {
       return c.json({ error: "No files provided" }, 400);
@@ -30,7 +34,7 @@ export const createFiles = new Hono().post("/", requiresAdmin, async (c) => {
       );
     }
 
-    const uploadDir = "./files";
+    const uploadDir = `./files/project-${currentUser.projectId}`;
 
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -88,11 +92,15 @@ export const createFiles = new Hono().post("/", requiresAdmin, async (c) => {
         // Process images
         if (type === "image") {
           finalBuffer = await optimizeImage(buffer);
-          thumbnailPath = await generateThumbnail(buffer, originalName);
+          thumbnailPath = await generateThumbnail(
+            buffer,
+            originalName,
+            currentUser.projectId
+          );
         }
 
         const filePath = path.join(uploadDir, generatedFileName);
-        const url = `/files/${generatedFileName}`;
+        const url = `/files/project-${currentUser.projectId}/${generatedFileName}`;
 
         // Write file to disk
         fs.writeFileSync(filePath, finalBuffer);
@@ -101,6 +109,7 @@ export const createFiles = new Hono().post("/", requiresAdmin, async (c) => {
         const [savedFile] = await db
           .insert(files)
           .values({
+            projectId: currentUser.projectId,
             name: originalName,
             type: type,
             path: url,

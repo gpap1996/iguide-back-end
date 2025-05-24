@@ -1,15 +1,22 @@
 import { Hono } from "hono";
 import { db } from "@/db";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import * as XLSX from "xlsx"; // SheetJS library for Excel file generation
 
 export const exportFilesToExcel = new Hono().get(
   "/",
-  requiresAdmin,
+  requiresManager,
   async (c) => {
     try {
+      const currentUser = c.get("currentUser");
+      if (!currentUser?.projectId) {
+        return c.json({ error: "Project ID not found for current user" }, 400);
+      }
+
+      const projectId = Number(currentUser.projectId);
       // Get all available languages first using findMany
       const availableLanguages = await db.query.languages.findMany({
+        where: (languages, { eq }) => eq(languages.projectId, projectId),
         orderBy: (languages, { asc }) => [asc(languages.locale)],
         columns: {
           id: true,
@@ -53,6 +60,7 @@ export const exportFilesToExcel = new Hono().get(
             },
           },
         },
+        orderBy: (files, { desc }) => [desc(files.createdAt)],
       });
 
       // Transform the data into a flat structure suitable for Excel
