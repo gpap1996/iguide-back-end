@@ -48,9 +48,16 @@ export const updateUser = new Hono().put(
     }
 
     try {
-      await firebaseAuth.updateUser(userId, {
+      const { customClaims } = await firebaseAuth.updateUser(userId, {
         email: user.email,
         password: user.password || undefined,
+      });
+
+      console.log(customClaims);
+
+      await firebaseAuth.setCustomUserClaims(userId, {
+        ...customClaims,
+        projectId: user.projectId,
       });
 
       const [result] = await db

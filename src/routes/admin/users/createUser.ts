@@ -43,6 +43,7 @@ export const createUser = new Hono().post(
 
       await firebaseAuth.setCustomUserClaims(userRecord.uid, {
         role: "manager",
+        projectId: user.projectId,
         userWritten: true,
       });
 
