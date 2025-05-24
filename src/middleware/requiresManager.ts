@@ -8,15 +8,22 @@ declare module "hono" {
   }
 }
 
-export const requiresAuth = createMiddleware(async (c, next) => {
+export const requiresManager = createMiddleware(async (c, next) => {
   try {
     const jwt = c.req.header("Authorization")?.split(" ")[1]; // get jwt from headers
 
     const decoded = await firebaseAuth.verifyIdToken(jwt || ""); // verify jwt
 
+    if (decoded.role !== "manager") {
+      throw new HTTPException(401, {
+        message: "Unauthorized",
+      });
+    }
+
     c.set("currentUser", {
       user_id: decoded.uid,
       email: decoded.email!,
+      projectId: decoded.projectId!,
     });
 
     await next();

@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { files } from "../../db/schema";
 import { desc } from "drizzle-orm";
 
-export const getFilesDropdown = new Hono().get("/dropdown", async (c) => {
+export const getFilesDropdown = new Hono().get("/", async (c) => {
   const result = await db
     .select({
       id: files.id,

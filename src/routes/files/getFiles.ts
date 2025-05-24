@@ -14,7 +14,7 @@ export const getFiles = new Hono().get("/", async (c) => {
 
   if (title) {
     const searchPattern = `%${title}%`;
-    // Get files IDs that match the title filter in file_translations or files.fileName
+    // Get files IDs that match the title filter in file_translations or files.name
     const matchingfileIds = title
       ? await db
           .select({ fileId: file_translations.fileId })
@@ -27,7 +27,7 @@ export const getFiles = new Hono().get("/", async (c) => {
               .select({ fileId: files.id })
               .from(files)
               .where(
-                sql<boolean>`unaccent(lower(${files.fileName})) LIKE unaccent(lower(${searchPattern}))`
+                sql<boolean>`unaccent(lower(${files.name})) LIKE unaccent(lower(${searchPattern}))`
               )
           )
       : [];

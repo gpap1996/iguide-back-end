@@ -7,6 +7,7 @@ import { authRoutes } from "./routes/auth";
 import { languageRoutes } from "./routes/languages";
 import { fileRoutes } from "./routes/files";
 import { areaRoutes } from "./routes/areas";
+import { projectRoutes } from "./routes/projects";
 
 import { serveStatic } from "@hono/node-server/serve-static";
 
@@ -28,7 +29,8 @@ app
   .route("/auth", authRoutes)
   .route("/languages", languageRoutes)
   .route("/files", fileRoutes)
-  .route("/areas", areaRoutes);
+  .route("/areas", areaRoutes)
+  .route("/projects", projectRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

@@ -14,8 +14,9 @@ async function createUserWithRoleAndSaveToDB(email: string, password: string) {
 
     // Step 2: Set custom claims (role: "admin", userWritten: true)
     await firebaseAuth.setCustomUserClaims(userRecord.uid, {
-      role: "admin",
+      role: "manager",
       userWritten: true,
+      projectId: 1,
     });
 
     console.log(
@@ -25,13 +26,14 @@ async function createUserWithRoleAndSaveToDB(email: string, password: string) {
 
     const newUser = {
       id: userRecord.uid,
-      username: "testadmin",
-      role: "admin",
+      username: "testmanager",
+      role: "manager",
       firstName: "Test",
-      lastName: "Admin",
+      lastName: "Manager",
       email: userRecord.email!,
       nationality: "Greece",
       countryOfResidence: "Greece",
+      projectId: 1,
     };
 
     const insertedUser = await db.insert(users).values(newUser).returning();
@@ -43,7 +45,7 @@ async function createUserWithRoleAndSaveToDB(email: string, password: string) {
   }
 }
 
-const email = "testadmin@test.com";
+const email = "testmanager@test.com";
 const password = "asdf1958";
 
 createUserWithRoleAndSaveToDB(email, password)

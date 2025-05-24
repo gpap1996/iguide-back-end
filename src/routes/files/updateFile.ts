@@ -104,7 +104,7 @@ export const updateFile = new Hono().put("/:id", requiresAdmin, async (c) => {
       if (type) updateValues.type = type;
       if (newUrl) updateValues.path = newUrl;
       if (newThumbnailPath) updateValues.thumbnailPath = newThumbnailPath;
-      if (file && file instanceof File) updateValues.fileName = file.name;
+      if (file && file instanceof File) updateValues.name = file.name;
 
       const [updatedFile] = await trx
         .update(files)

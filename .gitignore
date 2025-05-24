@@ -1,6 +1,7 @@
 node_modules
 dist
 /files
+/oldmigrations
 iguide.session.sql
 .env
 .env.*
