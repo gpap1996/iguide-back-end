@@ -53,8 +53,6 @@ export const updateUser = new Hono().put(
         password: user.password || undefined,
       });
 
-      console.log(customClaims);
-
       await firebaseAuth.setCustomUserClaims(userId, {
         ...customClaims,
         projectId: user.projectId,
