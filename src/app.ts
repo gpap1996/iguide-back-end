@@ -4,10 +4,10 @@ import { cors } from "hono/cors";
 
 import { HTTPException } from "hono/http-exception";
 import { authRoutes } from "./routes/auth";
-import { languageRoutes } from "./routes/languages";
-import { fileRoutes } from "./routes/files";
-import { areaRoutes } from "./routes/areas";
-import { projectRoutes } from "./routes/projects";
+import { languageRoutes } from "./routes/manager/languages";
+import { fileRoutes } from "./routes/manager/files";
+import { areaRoutes } from "./routes/manager/areas";
+import { projectRoutes } from "./routes/admin/projects";
 
 import { serveStatic } from "@hono/node-server/serve-static";
 

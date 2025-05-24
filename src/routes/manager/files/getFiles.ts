@@ -1,42 +1,51 @@
 import { Hono } from "hono";
-import { db } from "../../db";
+import { db } from "@/db";
 import { sql, count, inArray } from "drizzle-orm";
-import { area_translations, areas } from "../../db/schema";
+import { file_translations } from "@/db/schema/file_translations";
+import { files } from "@/db/schema/files";
 
-export const getAreas = new Hono().get("/", async (c) => {
+export const getFiles = new Hono().get("/", async (c) => {
   const title = c.req.query("title");
   const limit = parseInt(c.req.query("limit") || "10", 10);
   const page = parseInt(c.req.query("page") || "1", 10);
 
   const offset = (page - 1) * limit;
-  let areaIds: number[] = [];
+  let fileIds: number[] = [];
 
   if (title) {
     const searchPattern = `%${title}%`;
-    // Get areas IDs that match the title filter in area_translations
-    const matchingAreaIds = title
+    // Get files IDs that match the title filter in file_translations or files.name
+    const matchingfileIds = title
       ? await db
-          .select({ areasId: area_translations.areaId })
-          .from(area_translations)
+          .select({ fileId: file_translations.fileId })
+          .from(file_translations)
           .where(
-            sql<boolean>`unaccent(lower(${area_translations.title})) LIKE unaccent(lower(${searchPattern}))`
+            sql<boolean>`unaccent(lower(${file_translations.title})) LIKE unaccent(lower(${searchPattern}))`
+          )
+          .union(
+            db
+              .select({ fileId: files.id })
+              .from(files)
+              .where(
+                sql<boolean>`unaccent(lower(${files.name})) LIKE unaccent(lower(${searchPattern}))`
+              )
           )
       : [];
 
     //remove duplicates
-    areaIds = Array.from(
+    fileIds = Array.from(
       new Set(
-        matchingAreaIds
-          .map((item) => item.areasId)
+        matchingfileIds
+          .map((item) => item.fileId)
           .filter((id): id is number => id !== undefined) //because typescript sucks
       )
     );
-    console.log(areaIds);
+    console.log(fileIds);
 
     // No matches for the title: totalItems is 0, and no need to query further
-    if (areaIds.length === 0) {
+    if (fileIds.length === 0) {
       return c.json({
-        areas: [],
+        files: [],
         pagination: {
           limit,
           page,
@@ -49,7 +58,7 @@ export const getAreas = new Hono().get("/", async (c) => {
   }
 
   // Count the total items, with optional filtering by title
-  const [countQuery] = await db.select({ count: count() }).from(areas);
+  const [countQuery] = await db.select({ count: count() }).from(files);
 
   let totalItems = countQuery.count || 0;
   let totalPages = limit === -1 ? 1 : Math.ceil(totalItems / limit);
@@ -65,42 +74,16 @@ export const getAreas = new Hono().get("/", async (c) => {
     );
   }
 
-  const where = title ? inArray(areas.id, areaIds) : undefined;
+  const where = title ? inArray(files.id, fileIds) : undefined;
   // Fetch paginated items
-  let areasQuery = db.query.areas.findMany({
+  let filesQuery = db.query.files.findMany({
     where,
-    columns: {
-      id: true,
-      weight: true,
-    },
-
     with: {
-      parent: {
-        columns: {
-          id: true,
-        },
-        with: {
-          translations: {
-            columns: {
-              id: true,
-              title: true,
-            },
-            with: {
-              language: {
-                columns: {
-                  locale: true,
-                },
-              },
-            },
-          },
-        },
-      },
-
       translations: {
         columns: {
           id: true,
           title: true,
-          subtitle: true,
+          description: true,
         },
         with: {
           language: {
@@ -111,20 +94,20 @@ export const getAreas = new Hono().get("/", async (c) => {
         },
       },
     },
-    orderBy: (areas, { asc }) => [asc(areas.weight)],
+    orderBy: (files, { desc }) => [desc(files.createdAt)],
     limit: limit !== -1 ? limit : undefined,
     offset: limit !== -1 ? offset : undefined,
   });
 
   if (title) {
-    totalItems = Number(areaIds.length);
+    totalItems = Number(fileIds.length);
     totalPages = Math.ceil(totalItems / limit);
   }
 
-  const items = await areasQuery.execute();
+  const items = await filesQuery.execute();
 
   return c.json({
-    areas: items,
+    files: items,
     pagination: {
       limit,
       page,

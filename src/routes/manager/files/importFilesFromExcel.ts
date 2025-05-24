@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { db } from "../../db";
-import { file_translations } from "../../db/schema/file_translations";
-import { files } from "../../db/schema/files";
-import { languages } from "../../db/schema/languages";
-import { requiresAdmin } from "../../middleware/requiresAdmin";
+import { db } from "@/db";
+import { file_translations } from "@/db/schema/file_translations";
+import { files } from "@/db/schema/files";
+import { languages } from "@/db/schema/languages";
+import { requiresAdmin } from "@/middleware/requiresAdmin";
 import * as XLSX from "xlsx";
 import { eq, and, inArray } from "drizzle-orm";
 

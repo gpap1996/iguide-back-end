@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { db } from "../../db";
-import { languages } from "../../db/schema/languages";
+import { db } from "@/db";
+import { languages } from "@/db/schema/languages";
 import { sql } from "drizzle-orm";
 
 // Route to get paginated languages

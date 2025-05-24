@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { db } from "../../db";
-import { languages, area_translations, areas } from "../../db/schema";
+import { db } from "@/db";
+import { languages, area_translations, areas } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 
 export const getAreasDropdown = new Hono().get("/dropdown", async (c) => {

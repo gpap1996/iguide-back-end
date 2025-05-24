@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
-import { requiresAdmin } from "../../middleware/requiresAdmin";
+import { requiresAdmin } from "@/middleware/requiresAdmin";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { db } from "../../db";
-import { files } from "../../db/schema/files";
-import { file_translations } from "../../db/schema/file_translations";
+import { db } from "@/db";
+import { files } from "@/db/schema/files";
+import { file_translations } from "@/db/schema/file_translations";
 import { eq, inArray } from "drizzle-orm";
 
 const schema = z.object({

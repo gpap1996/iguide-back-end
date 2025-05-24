@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
-import { requiresAdmin } from "../../middleware/requiresAdmin";
-import { db } from "../../db";
-import { files } from "../../db/schema/files";
-import { file_translations } from "../../db/schema/file_translations";
+import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { db } from "@/db";
+import { files } from "@/db/schema/files";
+import { file_translations } from "@/db/schema/file_translations";
 import { eq } from "drizzle-orm";
 
 export const deleteFile = new Hono().delete(

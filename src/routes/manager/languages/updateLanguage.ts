@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { db } from "../../db";
-import { languages } from "../../db/schema/languages";
-import { requiresAdmin } from "../../middleware/requiresAdmin";
+import { db } from "@/db";
+import { languages } from "@/db/schema/languages";
+import { requiresAdmin } from "@/middleware/requiresAdmin";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq } from "drizzle-orm";

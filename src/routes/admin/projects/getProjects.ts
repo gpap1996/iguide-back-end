@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { requiresAdmin } from "../../middleware/requiresAdmin";
-import { db } from "../../db";
-import { projects } from "../../db/schema";
+import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { db } from "@/db";
+import { projects } from "@/db/schema";
 import { count, sql } from "drizzle-orm";
 
 export const getProjects = new Hono().get("/", requiresAdmin, async (c) => {

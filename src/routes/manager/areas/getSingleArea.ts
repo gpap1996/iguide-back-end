@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { db } from "../../db";
+import { db } from "@/db";
 import { eq } from "drizzle-orm";
-import { areas } from "../../db/schema";
+import { areas } from "@/db/schema";
 
 export const getSingleArea = new Hono().get(":id", async (c) => {
   const id = parseInt(c.req.param("id"));

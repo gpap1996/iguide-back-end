@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { requiresAdmin } from "../../middleware/requiresAdmin";
-import { db } from "../../db";
-import { projects } from "../../db/schema";
+import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { db } from "@/db";
+import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 const schema = z.object({
@@ -21,6 +21,16 @@ export const updateProject = new Hono().put(
 
     if (!id) {
       return c.json({ error: "Project ID is required" }, 400);
+    }
+
+    // Check if project exists
+    const [existingProject] = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, id));
+
+    if (!existingProject) {
+      return c.json({ error: "Project not found" }, 404);
     }
 
     try {

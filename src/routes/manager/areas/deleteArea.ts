@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { area_translations, areas } from "../../db/schema";
-import { db } from "../../db";
+import { areas } from "@/db/schema";
+import { db } from "@/db";
 import { eq } from "drizzle-orm";
 
 export const deleteArea = new Hono().delete("/:id", async (c) => {
