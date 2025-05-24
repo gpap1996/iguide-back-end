@@ -36,6 +36,7 @@ export const exportFilesToExcel = new Hono().get(
 
       // Get all files with their translations using relationships
       const filesWithTranslations = await db.query.files.findMany({
+        where: (files, { eq }) => eq(files.projectId, projectId),
         columns: {
           id: true,
           type: true,
