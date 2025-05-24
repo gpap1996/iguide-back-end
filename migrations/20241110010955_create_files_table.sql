@@ -3,9 +3,9 @@
 CREATE TABLE IF NOT EXISTS files (
     id SERIAL PRIMARY KEY,
     type TEXT NOT NULL,
-    file_name TEXT NOT NULL,
-    url TEXT NOT NULL,
-    thumbnail_url TEXT,
+    name TEXT NOT NULL,
+    path TEXT NOT NULL,
+    thumbnail_path TEXT,
     created_at TIMESTAMP DEFAULT current_timestamp,
     updated_at TIMESTAMP DEFAULT current_timestamp
 );

@@ -32,9 +32,9 @@ export const exportFilesToExcel = new Hono().get(
         columns: {
           id: true,
           type: true,
-          fileName: true,
-          url: true,
-          thumbnailUrl: true,
+          name: true,
+          path: true,
+          thumbnailPath: true,
         },
         with: {
           translations: {
@@ -60,7 +60,7 @@ export const exportFilesToExcel = new Hono().get(
         const baseRecord: Record<string, any> = {
           id: file.id,
           type: file.type,
-          name: file.fileName,
+          name: file.name,
         };
 
         // Initialize translation fields with empty values for all languages
@@ -162,12 +162,12 @@ export const exportFilesToExcel = new Hono().get(
       });
 
       // Set headers for file download with proper encoding for all browsers
-      const fileName = "files-export.xlsx";
-      const encodedFilename = encodeURIComponent(fileName);
+      const name = "files-export.xlsx";
+      const encodedName = encodeURIComponent(name);
 
       c.header(
         "Content-Disposition",
-        `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFilename}`
+        `attachment; name="${name}"; name*=UTF-8''${encodedName}`
       );
       c.header(
         "Content-Type",

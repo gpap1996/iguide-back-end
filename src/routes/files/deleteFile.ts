@@ -18,8 +18,8 @@ export const deleteFile = new Hono().delete(
       const [foundFile] = await db
         .select({
           id: files.id,
-          thumbnailUrl: files.thumbnailUrl,
-          url: files.url,
+          thumbnailPath: files.thumbnailPath,
+          path: files.path,
         })
         .from(files)
         .where(eq(files.id, fileId));
@@ -36,14 +36,14 @@ export const deleteFile = new Hono().delete(
         // After successful DB deletion, delete physical files
         try {
           // Delete main file
-          const filePath = path.join(".", foundFile.url);
+          const filePath = path.join(".", foundFile.path);
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
           }
 
           // Delete thumbnail if it exists
-          if (foundFile.thumbnailUrl) {
-            const thumbnailPath = path.join(".", foundFile.thumbnailUrl);
+          if (foundFile.thumbnailPath) {
+            const thumbnailPath = path.join(".", foundFile.thumbnailPath);
             if (fs.existsSync(thumbnailPath)) {
               fs.unlinkSync(thumbnailPath);
             }

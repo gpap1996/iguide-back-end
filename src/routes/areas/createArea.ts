@@ -55,7 +55,13 @@ export const createArea = new Hono().post(
                 .where(eq(languages.locale, locale));
 
               if (!language) {
-                throw new Error(`Language not found for locale: ${locale}`);
+                return c.json(
+                  {
+                    success: false,
+                    message: `Language not found for locale ${locale}`,
+                  },
+                  404
+                );
               }
 
               return trx

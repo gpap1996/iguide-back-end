@@ -66,7 +66,7 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
   }
 
   let generatedFileName: string | undefined = "";
-  let thumbnailUrl: string | undefined = "";
+  let thumbnailPath: string | undefined = "";
 
   try {
     const originalName = file.name;
@@ -85,7 +85,7 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
 
     if (isImage) {
       finalBuffer = await optimizeImage(buffer);
-      thumbnailUrl = await generateThumbnail(buffer, originalName);
+      thumbnailPath = await generateThumbnail(buffer, originalName);
     }
 
     const filePath = path.join(uploadDir, generatedFileName);
@@ -98,10 +98,10 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
       const [savedFile] = await trx
         .insert(files)
         .values({
-          fileName: originalName,
+          name: originalName,
           type: type,
-          url,
-          thumbnailUrl: isImage ? thumbnailUrl : undefined,
+          path: url,
+          thumbnailPath: isImage ? thumbnailPath : undefined,
         })
         .returning();
 
@@ -120,7 +120,13 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
               .where(eq(languages.locale, locale));
 
             if (!language) {
-              throw new Error(`Language not found for locale: ${locale}`);
+              return c.json(
+                {
+                  success: false,
+                  message: `Language not found for locale ${locale}`,
+                },
+                404
+              );
             }
 
             // Insert translation
@@ -155,8 +161,8 @@ export const createFile = new Hono().post("/", requiresAdmin, async (c) => {
     }
 
     // Remove the thumbnail if it exists
-    if (thumbnailUrl) {
-      const filePath = path.join(uploadDir, thumbnailUrl);
+    if (thumbnailPath) {
+      const filePath = path.join(uploadDir, thumbnailPath);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }

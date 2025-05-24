@@ -5,9 +5,9 @@ import { relations } from "drizzle-orm";
 export const files = pgTable("files", {
   id: serial("id").primaryKey(),
   type: text("type").notNull(),
-  fileName: text("file_name").notNull(),
-  url: text("url").notNull(),
-  thumbnailUrl: text("thumbnail_url"),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  thumbnailPath: text("thumbnail_path"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

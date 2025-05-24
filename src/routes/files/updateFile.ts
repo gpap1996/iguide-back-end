@@ -37,7 +37,7 @@ export const updateFile = new Hono().put("/:id", requiresAdmin, async (c) => {
 
   // Check if file exists
   const [existingFile] = await db
-    .select({ url: files.url, thumbnailUrl: files.thumbnailUrl })
+    .select({ path: files.path, thumbnailPath: files.thumbnailPath })
     .from(files)
     .where(eq(files.id, fileId));
 
@@ -56,7 +56,7 @@ export const updateFile = new Hono().put("/:id", requiresAdmin, async (c) => {
 
   const uploadDir = "./files";
   let newUrl: string | undefined;
-  let newThumbnailUrl: string | undefined;
+  let newThumbnailPath: string | undefined;
   let oldFilePath: string | undefined;
   let oldThumbnailPath: string | undefined;
 
@@ -78,7 +78,7 @@ export const updateFile = new Hono().put("/:id", requiresAdmin, async (c) => {
 
       if (isImage) {
         finalBuffer = await optimizeImage(buffer);
-        newThumbnailUrl = await generateThumbnail(buffer, originalName);
+        newThumbnailPath = await generateThumbnail(buffer, originalName);
       }
 
       const newFilePath = path.join(uploadDir, newFileName);
@@ -87,13 +87,13 @@ export const updateFile = new Hono().put("/:id", requiresAdmin, async (c) => {
       fs.writeFileSync(newFilePath, finalBuffer);
 
       // Store old file paths for cleanup
-      if (existingFile.url) {
-        oldFilePath = path.join(uploadDir, path.basename(existingFile.url));
+      if (existingFile.path) {
+        oldFilePath = path.join(uploadDir, path.basename(existingFile.path));
       }
-      if (existingFile.thumbnailUrl) {
+      if (existingFile.thumbnailPath) {
         oldThumbnailPath = path.join(
           uploadDir,
-          path.basename(existingFile.thumbnailUrl)
+          path.basename(existingFile.thumbnailPath)
         );
       }
     }
@@ -102,8 +102,8 @@ export const updateFile = new Hono().put("/:id", requiresAdmin, async (c) => {
       // Update mefilesdia record
       const updateValues: any = {};
       if (type) updateValues.type = type;
-      if (newUrl) updateValues.url = newUrl;
-      if (newThumbnailUrl) updateValues.thumbnailUrl = newThumbnailUrl;
+      if (newUrl) updateValues.path = newUrl;
+      if (newThumbnailPath) updateValues.thumbnailPath = newThumbnailPath;
       if (file && file instanceof File) updateValues.fileName = file.name;
 
       const [updatedFile] = await trx

@@ -7,9 +7,9 @@ export const getFilesDropdown = new Hono().get("/dropdown", async (c) => {
   const result = await db
     .select({
       id: files.id,
-      fileName: files.fileName,
-      thumbnailUrl: files.thumbnailUrl,
-      url: files.url,
+      name: files.name,
+      thumbnailPath: files.thumbnailPath,
+      path: files.path,
     })
     .from(files)
     .orderBy(desc(files.createdAt));

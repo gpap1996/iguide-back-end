@@ -86,12 +86,12 @@ export const createFiles = new Hono().post("/", requiresAdmin, async (c) => {
         const buffer = Buffer.from(arrayBuffer);
 
         let finalBuffer = buffer;
-        let thumbnailUrl;
+        let thumbnailPath;
 
         // Process images
         if (type === "image") {
           finalBuffer = await optimizeImage(buffer);
-          thumbnailUrl = await generateThumbnail(buffer, originalName);
+          thumbnailPath = await generateThumbnail(buffer, originalName);
         }
 
         const filePath = path.join(uploadDir, generatedFileName);
@@ -104,10 +104,10 @@ export const createFiles = new Hono().post("/", requiresAdmin, async (c) => {
         const [savedFile] = await db
           .insert(files)
           .values({
-            fileName: originalName,
+            name: originalName,
             type: type,
-            url,
-            thumbnailUrl: type === "image" ? thumbnailUrl : undefined,
+            path: url,
+            thumbnailPath: type === "image" ? thumbnailPath : undefined,
           })
           .returning();
 

@@ -30,8 +30,8 @@ export const deleteFiles = new Hono().post(
       const filesToDelete = await db
         .select({
           id: files.id,
-          thumbnailUrl: files.thumbnailUrl,
-          url: files.url,
+          thumbnailPath: files.thumbnailPath,
+          path: files.path,
           type: files.type,
         })
         .from(files)
@@ -57,14 +57,14 @@ export const deleteFiles = new Hono().post(
       for (const file of filesToDelete) {
         try {
           // Delete main file
-          const filePath = path.join(".", file.url);
+          const filePath = path.join(".", file.path);
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
           }
 
           // Delete thumbnail if it's an image type and has a thumbnail
-          if (file.type === "image" && file.thumbnailUrl) {
-            const thumbnailPath = path.join(".", file.thumbnailUrl);
+          if (file.type === "image" && file.thumbnailPath) {
+            const thumbnailPath = path.join(".", file.thumbnailPath);
             if (fs.existsSync(thumbnailPath)) {
               fs.unlinkSync(thumbnailPath);
             }
