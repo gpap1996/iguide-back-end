@@ -8,6 +8,7 @@ import { languageRoutes } from "./routes/manager/languages";
 import { fileRoutes } from "./routes/manager/files";
 import { areaRoutes } from "./routes/manager/areas";
 import { projectRoutes } from "./routes/admin/projects";
+import { userRoutes } from "./routes/admin/users";
 
 import { serveStatic } from "@hono/node-server/serve-static";
 
@@ -30,7 +31,8 @@ app
   .route("/languages", languageRoutes)
   .route("/files", fileRoutes)
   .route("/areas", areaRoutes)
-  .route("/projects", projectRoutes);
+  .route("/projects", projectRoutes)
+  .route("/users", userRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
