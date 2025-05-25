@@ -28,7 +28,7 @@ export const requiresAdmin = createMiddleware(async (c, next) => {
     await next();
   } catch (e) {
     throw new HTTPException(401, {
-      message: "Unauthorized111",
+      message: "Unauthorized",
     });
   }
 });
