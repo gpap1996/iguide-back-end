@@ -1,0 +1,4 @@
+dotenv -e .env.supabase -- dbmate up
+dotenv -e .env.supabase -- npm run start
+dotenv -e .env.supabase -- npm run create-admin
+
