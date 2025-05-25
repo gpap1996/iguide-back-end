@@ -1,10 +1,7 @@
 import sharp from "sharp";
 import path from "path";
-import fs from "fs-extra";
 import { Readable } from "stream";
-import { pipeline } from "stream/promises";
 import { storage, generateUniqueFilename } from "./fileStorage";
-import { UploadedFile } from "./streamUpload";
 
 export const IMAGE_CONFIG = {
   maxWidth: 1200,

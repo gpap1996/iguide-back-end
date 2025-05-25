@@ -15,7 +15,6 @@
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
     "firebase-admin": "^12.7.0",
-    "fs-extra": "^11.3.0",
     "hono": "^4.6.9",
     "p-limit": "^6.2.0",
     "pg": "^8.15.6",
@@ -25,7 +24,6 @@
   },
   "devDependencies": {
     "@types/busboy": "^1.5.4",
-    "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.9.0",
     "@types/pg": "^8.15.0",
     "dbmate": "^2.27.0",

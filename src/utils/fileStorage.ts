@@ -1,8 +1,7 @@
 // File storage configuration
 // This module provides an abstraction for file storage that can be switched between
-// local filesystem and cloud storage providers like Firebase Storage or AWS S3
+// cloud storage providers like Firebase Storage or AWS S3
 
-import fs from "fs-extra";
 import path from "path";
 import { bucket } from "./firebaseAdmin"; // Import bucket from firebaseAdmin
 
@@ -27,58 +26,6 @@ export interface StorageProvider {
   getFileUrl(filePath: string): string;
 
   deleteFile(filePath: string): Promise<void>;
-}
-
-// Local filesystem implementation
-export class LocalFileStorage implements StorageProvider {
-  private baseDir: string;
-  private baseUrl: string;
-
-  constructor(baseDir: string = "./files", baseUrl: string = "/files") {
-    this.baseDir = baseDir;
-    this.baseUrl = baseUrl;
-  }
-
-  async saveFile(
-    fileBuffer: Buffer | NodeJS.ReadableStream,
-    filePath: string
-  ): Promise<string> {
-    const fullPath = path.join(this.baseDir, filePath);
-
-    // Ensure the directory exists
-    await fs.ensureDir(path.dirname(fullPath));
-
-    if (Buffer.isBuffer(fileBuffer)) {
-      // Write buffer to file
-      await fs.writeFile(fullPath, fileBuffer);
-    } else {
-      // Create write stream for the file
-      const writeStream = fs.createWriteStream(fullPath);
-
-      // Pipe readable stream to write stream
-      await new Promise<void>((resolve, reject) => {
-        fileBuffer.pipe(writeStream);
-        writeStream.on("finish", () => resolve());
-        writeStream.on("error", (err) => reject(err));
-      });
-    }
-
-    // Return the URL path
-    return `${this.baseUrl}/${filePath}`;
-  }
-
-  getFileUrl(filePath: string): string {
-    return `${this.baseUrl}/${filePath}`;
-  }
-
-  async deleteFile(filePath: string): Promise<void> {
-    const fullPath = path.join(this.baseDir, filePath);
-
-    // Check if file exists before deleting
-    if (await fs.pathExists(fullPath)) {
-      await fs.unlink(fullPath);
-    }
-  }
 }
 
 // Firebase Storage implementation

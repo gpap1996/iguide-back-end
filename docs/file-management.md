@@ -11,7 +11,6 @@ The file management system is a robust solution for handling file uploads, stora
 The system uses a storage abstraction layer (`StorageProvider` interface) that allows for different storage backends:
 
 - `FirebaseStorage`: Primary implementation using Firebase Storage
-- `LocalFileStorage`: Local filesystem implementation (for development/testing)
 
 ### 2. File Limits and Restrictions
 
