@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { languages } from "@/db/schema/languages";
+import { db } from "../../../db";
+import { languages } from "../../../db/schema/languages";
 import { eq, sql } from "drizzle-orm";
-import { requiresManager } from "@/middleware/requiresManager";
+import { requiresManager } from "../../../middleware/requiresManager";
 
 export const getLanguages = new Hono().get("/", requiresManager, async (c) => {
   const currentUser = c.get("currentUser");

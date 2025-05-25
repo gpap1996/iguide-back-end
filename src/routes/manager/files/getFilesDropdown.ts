@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { files } from "@/db/schema";
+import { db } from "../../../db";
+import { files } from "../../../db/schema";
 import { desc, eq } from "drizzle-orm";
-import { requiresManager } from "@/middleware/requiresManager";
+import { requiresManager } from "../../../middleware/requiresManager";
 
 export const getFilesDropdown = new Hono().get(
   "/",

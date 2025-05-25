@@ -1,6 +1,6 @@
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import firebaseAuth from "@/firebaseAuth";
+import { db } from "../../../db";
+import { users } from "../../../db/schema";
+import firebaseAuth from "../../../firebaseAuth";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 

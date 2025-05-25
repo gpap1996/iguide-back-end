@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { languages, area_translations, areas } from "@/db/schema";
+import { db } from "../../../db";
+import { languages, area_translations, areas } from "../../../db/schema";
 import { and, asc, eq } from "drizzle-orm";
-import { requiresManager } from "@/middleware/requiresManager";
+import { requiresManager } from "../../../middleware/requiresManager";
 
 export const getAreasDropdown = new Hono().get(
   "/dropdown",

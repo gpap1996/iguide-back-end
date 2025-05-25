@@ -1,13 +1,16 @@
 import { Hono } from "hono";
 import fs from "fs";
-import { requiresManager } from "@/middleware/requiresManager";
+import { requiresManager } from "../../../middleware/requiresManager";
 import path from "path";
-import { db } from "@/db";
-import { files } from "@/db/schema/files";
-import { file_translations } from "@/db/schema/file_translations";
-import { languages } from "@/db/schema/languages";
+import { db } from "../../../db";
+import { files } from "../../../db/schema/files";
+import { file_translations } from "../../../db/schema/file_translations";
+import { languages } from "../../../db/schema/languages";
 
-import { optimizeImage, generateThumbnail } from "@/utils/imageOptimization";
+import {
+  optimizeImage,
+  generateThumbnail,
+} from "../../../utils/imageOptimization";
 import { and, eq } from "drizzle-orm";
 
 interface Translation {

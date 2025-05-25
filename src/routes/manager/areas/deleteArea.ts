@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { areas } from "@/db/schema";
-import { db } from "@/db";
+import { areas } from "../../../db/schema";
+import { db } from "../../../db";
 import { eq } from "drizzle-orm";
-import { requiresManager } from "@/middleware/requiresManager";
+import { requiresManager } from "../../../middleware/requiresManager";
 
 export const deleteArea = new Hono().delete(
   "/:id",

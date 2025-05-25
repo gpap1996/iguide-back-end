@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { languages } from "@/db/schema/languages";
-import { requiresManager } from "@/middleware/requiresManager";
+import { db } from "../../../db";
+import { languages } from "../../../db/schema/languages";
+import { requiresManager } from "../../../middleware/requiresManager";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 

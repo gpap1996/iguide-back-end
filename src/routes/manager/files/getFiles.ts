@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { db } from "@/db";
+import { db } from "../../../db";
 import { sql, count, inArray, and, eq } from "drizzle-orm";
-import { file_translations } from "@/db/schema/file_translations";
-import { files } from "@/db/schema/files";
-import { requiresManager } from "@/middleware/requiresManager";
+import { file_translations } from "../../../db/schema/file_translations";
+import { files } from "../../../db/schema/files";
+import { requiresManager } from "../../../middleware/requiresManager";
 
 export const getFiles = new Hono().get("/", requiresManager, async (c) => {
   const currentUser = c.get("currentUser");

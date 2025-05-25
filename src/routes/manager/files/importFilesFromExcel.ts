@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { file_translations } from "@/db/schema/file_translations";
-import { files } from "@/db/schema/files";
-import { requiresManager } from "@/middleware/requiresManager";
+import { db } from "../../../db";
+import { file_translations } from "../../../db/schema/file_translations";
+import { files } from "../../../db/schema/files";
+import { requiresManager } from "../../../middleware/requiresManager";
 import * as XLSX from "xlsx";
 import { eq, and, inArray } from "drizzle-orm";
 

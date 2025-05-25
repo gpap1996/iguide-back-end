@@ -1,6 +1,6 @@
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { db } from "../../../db";
+import { users } from "../../../db/schema";
+import { requiresAdmin } from "../../../middleware/requiresAdmin";
 import { count, eq, and } from "drizzle-orm";
 import { Hono } from "hono";
 

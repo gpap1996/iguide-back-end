@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { requiresManager } from "@/middleware/requiresManager";
+import { db } from "../../../db";
+import { requiresManager } from "../../../middleware/requiresManager";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -9,7 +9,7 @@ import {
   area_translations,
   files,
   area_files,
-} from "@/db/schema";
+} from "../../../db/schema";
 import { and, eq } from "drizzle-orm";
 
 const schema = z.object({

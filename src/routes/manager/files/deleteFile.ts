@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
-import { requiresManager } from "@/middleware/requiresManager";
-import { db } from "@/db";
-import { files } from "@/db/schema/files";
+import { requiresManager } from "../../../middleware/requiresManager";
+import { db } from "../../../db";
+import { files } from "../../../db/schema/files";
 import { eq } from "drizzle-orm";
 
 export const deleteFile = new Hono().delete(

@@ -1,13 +1,11 @@
 {
   "name": "my-app",
   "scripts": {
-    "start": "tsx watch src/index.ts",
+    "start": "node ./dist/index.js",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "user-login": "tsx src/scripts/userLogin.ts",
     "create-admin": "tsx src/scripts/createAdminUser.ts"
-  },
-  "_moduleAliases": {
-    "@": "src"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.5",
@@ -16,7 +14,6 @@
     "drizzle-orm": "^0.43.1",
     "firebase-admin": "^12.7.0",
     "hono": "^4.6.9",
-    "module-alias": "^2.2.3",
     "pg": "^8.15.6",
     "sharp": "^0.33.5",
     "xlsx": "^0.18.5",

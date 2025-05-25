@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { languages } from "@/db/schema/languages";
-import { requiresManager } from "@/middleware/requiresManager";
+import { db } from "../../../db";
+import { languages } from "../../../db/schema/languages";
+import { requiresManager } from "../../../middleware/requiresManager";
 import { eq } from "drizzle-orm";
 
 export const deleteLanguage = new Hono().delete(

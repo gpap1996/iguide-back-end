@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import firebaseAuth from "@/firebaseAuth";
-import { db } from "@/db";
-import { users } from "@/db/schema/users";
+import firebaseAuth from "../../firebaseAuth";
+import { db } from "../../db";
+import { users } from "../../db/schema/users";
 import { eq } from "drizzle-orm";
 
 export const authVerifyLogin = new Hono();

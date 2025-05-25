@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "@/db";
+import { db } from "../../../db";
 import { and, eq } from "drizzle-orm";
-import { areas } from "@/db/schema";
-import { requiresManager } from "@/middleware/requiresManager";
+import { areas } from "../../../db/schema";
+import { requiresManager } from "../../../middleware/requiresManager";
 
 export const getSingleArea = new Hono().get(
   ":id",

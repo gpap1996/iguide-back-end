@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { db } from "@/db";
-import { requiresManager } from "@/middleware/requiresManager";
+import { db } from "../../../db";
+import { requiresManager } from "../../../middleware/requiresManager";
 import * as XLSX from "xlsx"; // SheetJS library for Excel file generation
 
 export const exportFilesToExcel = new Hono().get(

@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
-import { db } from "@/db";
-import { projects } from "@/db/schema";
+import { requiresAdmin } from "../../../middleware/requiresAdmin";
+import { db } from "../../../db";
+import { projects } from "../../../db/schema";
 import { eq } from "drizzle-orm";
 
 const schema = z.object({

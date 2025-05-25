@@ -1,10 +1,13 @@
 import { Hono } from "hono";
 import fs from "fs";
 import path from "path";
-import { db } from "@/db";
-import { files } from "@/db/schema/files";
-import { requiresManager } from "@/middleware/requiresManager";
-import { optimizeImage, generateThumbnail } from "@/utils/imageOptimization";
+import { db } from "../../../db";
+import { files } from "../../../db/schema/files";
+import { requiresManager } from "../../../middleware/requiresManager";
+import {
+  optimizeImage,
+  generateThumbnail,
+} from "../../../utils/imageOptimization";
 
 // Create multiple files endpoint
 export const createFiles = new Hono().post("/", requiresManager, async (c) => {

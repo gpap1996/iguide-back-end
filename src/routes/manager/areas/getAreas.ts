@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "@/db";
+import { db } from "../../../db";
 import { sql, count, inArray, and, eq } from "drizzle-orm";
-import { area_translations, areas } from "@/db/schema";
-import { requiresManager } from "@/middleware/requiresManager";
+import { area_translations, areas } from "../../../db/schema";
+import { requiresManager } from "../../../middleware/requiresManager";
 
 export const getAreas = new Hono().get("/", requiresManager, async (c) => {
   const currentUser = c.get("currentUser");
