@@ -11,12 +11,20 @@ authVerifyLogin.get("/verify-login", async (c) => {
   const decodedToken = await firebaseAuth.verifyIdToken(jwt || "");
   const { uid, email } = decodedToken;
 
+  if (!uid) {
+    return c.json({ error: "Invalid Firebase token (missing user ID)" }, 401);
+  }
+
+  if (!email) {
+    return c.json({ error: "User has no email address" }, 400);
+  }
+
   const [user] = await db.select().from(users).where(eq(users.id, uid));
 
   if (!user) {
     await db.insert(users).values({
       id: uid,
-      email: email ?? "", //giati spaei mpales h ts
+      email: email,
       role: "guest",
     });
 
