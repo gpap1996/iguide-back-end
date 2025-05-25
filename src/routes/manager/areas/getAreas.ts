@@ -1,9 +1,15 @@
 import { Hono } from "hono";
 import { db } from "@/db";
-import { sql, count, inArray } from "drizzle-orm";
+import { sql, count, inArray, and, eq } from "drizzle-orm";
 import { area_translations, areas } from "@/db/schema";
+import { requiresManager } from "@/middleware/requiresManager";
 
-export const getAreas = new Hono().get("/", async (c) => {
+export const getAreas = new Hono().get("/", requiresManager, async (c) => {
+  const currentUser = c.get("currentUser");
+  if (!currentUser?.projectId) {
+    return c.json({ error: "Project ID not found for current user" }, 400);
+  }
+  const projectId = Number(currentUser.projectId);
   const title = c.req.query("title");
   const limit = parseInt(c.req.query("limit") || "10", 10);
   const page = parseInt(c.req.query("page") || "1", 10);
@@ -19,7 +25,10 @@ export const getAreas = new Hono().get("/", async (c) => {
           .select({ areasId: area_translations.areaId })
           .from(area_translations)
           .where(
-            sql<boolean>`unaccent(lower(${area_translations.title})) LIKE unaccent(lower(${searchPattern}))`
+            and(
+              sql<boolean>`unaccent(lower(${area_translations.title})) LIKE unaccent(lower(${searchPattern}))`,
+              sql`(${area_translations.projectId} = ${projectId})`
+            )
           )
       : [];
 
@@ -49,7 +58,10 @@ export const getAreas = new Hono().get("/", async (c) => {
   }
 
   // Count the total items, with optional filtering by title
-  const [countQuery] = await db.select({ count: count() }).from(areas);
+  const [countQuery] = await db
+    .select({ count: count() })
+    .from(areas)
+    .where(eq(areas.projectId, projectId));
 
   let totalItems = countQuery.count || 0;
   let totalPages = limit === -1 ? 1 : Math.ceil(totalItems / limit);
@@ -65,7 +77,9 @@ export const getAreas = new Hono().get("/", async (c) => {
     );
   }
 
-  const where = title ? inArray(areas.id, areaIds) : undefined;
+  const where = title
+    ? inArray(areas.id, areaIds)
+    : eq(areas.projectId, projectId);
   // Fetch paginated items
   let areasQuery = db.query.areas.findMany({
     where,

@@ -88,10 +88,7 @@ export const getFiles = new Hono().get("/", requiresManager, async (c) => {
   }
 
   const where = title
-    ? and(
-        inArray(files.id, fileIds),
-        eq(files.projectId, currentUser.projectId)
-      )
+    ? inArray(files.id, fileIds)
     : eq(files.projectId, currentUser.projectId);
   // Fetch paginated items
   let filesQuery = db.query.files.findMany({

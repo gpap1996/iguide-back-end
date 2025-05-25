@@ -8,11 +8,13 @@ import {
 import { area_translations } from "./area_translations";
 import { area_files } from "./area_files";
 import { relations } from "drizzle-orm";
+import { projects } from "./projects";
 
 export const areas = pgTable("areas", {
   id: serial("id").primaryKey(),
   parentId: integer("parent_id").references((): AnyPgColumn => areas.id),
   weight: integer("weight"),
+  projectId: integer("project_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -24,5 +26,9 @@ export const areaRelations = relations(areas, ({ one, many }) => ({
     fields: [areas.parentId],
     references: [areas.id],
     relationName: "parent",
+  }),
+  project: one(projects, {
+    fields: [areas.projectId],
+    references: [projects.id],
   }),
 }));

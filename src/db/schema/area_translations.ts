@@ -2,6 +2,7 @@ import { pgTable, integer, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { areas } from "./areas";
 import { languages } from "./languages";
 import { relations } from "drizzle-orm";
+import { projects } from "./projects";
 
 export const area_translations = pgTable("area_translations", {
   id: serial("id").primaryKey(),
@@ -11,6 +12,7 @@ export const area_translations = pgTable("area_translations", {
   languageId: integer("language_id")
     .notNull()
     .references(() => languages.id, { onDelete: "cascade" }),
+  projectId: integer("project_id").notNull(),
   title: text("title"),
   subtitle: text("subtitle"),
   description: text("description"),
@@ -28,6 +30,10 @@ export const areaTranslationRelations = relations(
     language: one(languages, {
       fields: [area_translations.languageId],
       references: [languages.id],
+    }),
+    project: one(projects, {
+      fields: [area_translations.projectId],
+      references: [projects.id],
     }),
   })
 );

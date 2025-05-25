@@ -10,14 +10,7 @@ export const deleteFile = new Hono().delete(
   "/:id",
   requiresManager,
   async (c) => {
-    const currentUser = c.get("currentUser");
     const fileId = parseInt(c.req.param("id"));
-
-    if (!currentUser?.projectId) {
-      return c.json({ error: "Project ID not found for current user" }, 400);
-    }
-
-    const projectId = Number(currentUser.projectId);
 
     try {
       // First, fetch the file record to get file paths

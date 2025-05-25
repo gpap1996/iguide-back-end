@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "@/db";
-import { requiresAdmin } from "@/middleware/requiresAdmin";
+import { requiresManager } from "@/middleware/requiresManager";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -10,7 +10,7 @@ import {
   files,
   area_files,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const schema = z.object({
   parentId: z.number().optional(),
@@ -31,10 +31,15 @@ const schema = z.object({
 
 export const createArea = new Hono().post(
   "/",
-  requiresAdmin,
+  requiresManager,
   zValidator("json", schema),
   async (c) => {
     const area = c.req.valid("json");
+    const currentUser = c.get("currentUser");
+    if (!currentUser?.projectId) {
+      return c.json({ error: "Project ID not found for current user" }, 400);
+    }
+    const projectId = Number(currentUser.projectId);
 
     try {
       const result = await db.transaction(async (trx): Promise<any> => {
@@ -42,7 +47,7 @@ export const createArea = new Hono().post(
 
         const [insertedArea] = await trx
           .insert(areas)
-          .values({ weight: area?.weight, parentId: area?.parentId })
+          .values({ projectId, weight: area?.weight, parentId: area?.parentId })
           .returning();
 
         // 2.Insert the translations into the area_translations table
@@ -52,7 +57,12 @@ export const createArea = new Hono().post(
               const [language] = await trx
                 .select({ id: languages.id })
                 .from(languages)
-                .where(eq(languages.locale, locale));
+                .where(
+                  and(
+                    eq(languages.locale, locale),
+                    eq(languages.projectId, projectId)
+                  )
+                );
 
               if (!language) {
                 return c.json(
@@ -67,6 +77,7 @@ export const createArea = new Hono().post(
               return trx
                 .insert(area_translations)
                 .values({
+                  projectId,
                   areaId: insertedArea.id,
                   languageId: language.id,
                   title: translation.title,
