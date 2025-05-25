@@ -6,6 +6,7 @@ import { db } from "../../../db";
 import { files } from "../../../db/schema/files";
 import { file_translations } from "../../../db/schema/file_translations";
 import { languages } from "../../../db/schema/languages";
+import { storage } from "../../../utils/fileStorage";
 
 import {
   optimizeImage,
@@ -61,56 +62,48 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
     }
   }
 
-  const uploadDir = `./files/project-${projectId}`;
   let newUrl: string | undefined;
   let newThumbnailPath: string | undefined;
-  let oldFilePath: string | undefined;
-  let oldThumbnailPath: string | undefined;
 
   try {
     // Handle file update if provided
     if (file && file instanceof File) {
       const originalName = file.name;
-      const extension = path.extname(originalName);
+      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(originalName);
       const timestamp = Date.now();
-      const randomString = Math.random().toString(36).substring(7);
-      const newFileName = `${timestamp}-${randomString}${extension}`;
+      const storagePath = `project-${projectId}/file-${timestamp}-${originalName}`;
 
+      console.log(`Processing file update for ${originalName}`);
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      // Only process images
-      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(originalName);
-      let finalBuffer = buffer;
-
       if (isImage) {
-        finalBuffer = await optimizeImage(buffer);
-        newThumbnailPath = await generateThumbnail(
-          buffer,
-          originalName,
-          projectId
-        );
-      }
+        console.log("Processing image file");
+        const optimizedBuffer = await optimizeImage(buffer);
+        console.log(`Uploading optimized image to ${storagePath}`);
+        newUrl = await storage.saveFile(optimizedBuffer, storagePath);
+        console.log(`Image uploaded successfully: ${newUrl}`);
 
-      const newFilePath = path.join(uploadDir, newFileName);
-      newUrl = `/files/project-${projectId}/${newFileName}`;
-
-      fs.writeFileSync(newFilePath, finalBuffer);
-
-      // Store old file paths for cleanup
-      if (existingFile.path) {
-        oldFilePath = path.join(uploadDir, path.basename(existingFile.path));
-      }
-      if (existingFile.thumbnailPath) {
-        oldThumbnailPath = path.join(
-          uploadDir,
-          path.basename(existingFile.thumbnailPath)
-        );
+        try {
+          console.log("Generating thumbnail");
+          newThumbnailPath = await generateThumbnail(
+            buffer,
+            originalName,
+            projectId
+          );
+          console.log(`Thumbnail generated: ${newThumbnailPath}`);
+        } catch (thumbnailError) {
+          console.error("Thumbnail generation failed:", thumbnailError);
+        }
+      } else {
+        console.log("Processing non-image file");
+        newUrl = await storage.saveFile(buffer, storagePath);
+        console.log(`File uploaded successfully: ${newUrl}`);
       }
     }
 
     const result = await db.transaction(async (trx) => {
-      // Update mefilesdia record
+      // Update file record
       const updateValues: any = {};
       if (type) updateValues.type = type;
       if (newUrl) updateValues.path = newUrl;
@@ -172,11 +165,19 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
     });
 
     // Clean up old files after successful transaction
-    if (oldFilePath && fs.existsSync(oldFilePath)) {
-      fs.unlinkSync(oldFilePath);
+    if (newUrl && existingFile.path) {
+      try {
+        await storage.deleteFile(existingFile.path);
+      } catch (error) {
+        console.error("Error deleting old file:", error);
+      }
     }
-    if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
-      fs.unlinkSync(oldThumbnailPath);
+    if (newThumbnailPath && existingFile.thumbnailPath) {
+      try {
+        await storage.deleteFile(existingFile.thumbnailPath);
+      } catch (error) {
+        console.error("Error deleting old thumbnail:", error);
+      }
     }
 
     return c.json({
@@ -186,11 +187,19 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
   } catch (error) {
     console.error("Error updating file:", error);
 
-    // Clean up new file if transaction failed
+    // Clean up new files if transaction failed
     if (newUrl) {
-      const newFilePath = path.join(uploadDir, path.basename(newUrl));
-      if (fs.existsSync(newFilePath)) {
-        fs.unlinkSync(newFilePath);
+      try {
+        await storage.deleteFile(newUrl);
+      } catch (deleteError) {
+        console.error("Error cleaning up new file:", deleteError);
+      }
+    }
+    if (newThumbnailPath) {
+      try {
+        await storage.deleteFile(newThumbnailPath);
+      } catch (deleteError) {
+        console.error("Error cleaning up new thumbnail:", deleteError);
       }
     }
 

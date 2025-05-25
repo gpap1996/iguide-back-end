@@ -9,8 +9,7 @@ import { fileRoutes } from "./routes/manager/files";
 import { areaRoutes } from "./routes/manager/areas";
 import { projectRoutes } from "./routes/admin/projects";
 import { userRoutes } from "./routes/admin/users";
-
-import { serveStatic } from "@hono/node-server/serve-static";
+import healthRoutes from "./routes/health";
 
 const app = new Hono();
 
@@ -23,8 +22,6 @@ app.use(
   })
 );
 
-app.use("/files/*", serveStatic({ root: "./" }));
-
 app
   .basePath("/api")
   .route("/auth", authRoutes)
@@ -32,7 +29,8 @@ app
   .route("/files", fileRoutes)
   .route("/areas", areaRoutes)
   .route("/projects", projectRoutes)
-  .route("/users", userRoutes);
+  .route("/users", userRoutes)
+  .route("/health", healthRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

@@ -1,10 +1,9 @@
 import { Hono } from "hono";
-import fs from "fs";
-import path from "path";
 import { requiresManager } from "../../../middleware/requiresManager";
 import { db } from "../../../db";
 import { files } from "../../../db/schema/files";
 import { eq } from "drizzle-orm";
+import { storage } from "../../../utils/fileStorage";
 
 export const deleteFile = new Hono().delete(
   "/:id",
@@ -19,6 +18,7 @@ export const deleteFile = new Hono().delete(
           id: files.id,
           thumbnailPath: files.thumbnailPath,
           path: files.path,
+          projectId: files.projectId,
         })
         .from(files)
         .where(eq(files.id, fileId));
@@ -35,20 +35,19 @@ export const deleteFile = new Hono().delete(
         // After successful DB deletion, delete physical files
         try {
           // Delete main file
-          const filePath = path.join(".", foundFile.path);
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+          if (foundFile.path) {
+            console.log(`Deleting file: ${foundFile.path}`);
+            await storage.deleteFile(foundFile.path);
           }
 
           // Delete thumbnail if it exists
           if (foundFile.thumbnailPath) {
-            const thumbnailPath = path.join(".", foundFile.thumbnailPath);
-            if (fs.existsSync(thumbnailPath)) {
-              fs.unlinkSync(thumbnailPath);
-            }
+            console.log(`Deleting thumbnail: ${foundFile.thumbnailPath}`);
+            await storage.deleteFile(foundFile.thumbnailPath);
           }
         } catch (fileError) {
           console.error("Error deleting physical files:", fileError);
+          // Don't throw here, as the DB transaction was successful
         }
       });
 

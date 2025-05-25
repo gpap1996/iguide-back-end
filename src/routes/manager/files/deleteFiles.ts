@@ -1,12 +1,11 @@
 import { Hono } from "hono";
-import fs from "fs";
-import path from "path";
 import { requiresManager } from "../../../middleware/requiresManager";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { db } from "../../../db";
 import { files } from "../../../db/schema/files";
-import { inArray } from "drizzle-orm";
+import { inArray, eq, and } from "drizzle-orm";
+import { storage } from "../../../utils/fileStorage";
 
 const schema = z.object({
   ids: z.array(z.number()),
@@ -18,11 +17,18 @@ export const deleteFiles = new Hono().post(
   requiresManager,
   zValidator("json", schema),
   async (c) => {
+    const currentUser = c.get("currentUser");
     const { ids } = c.req.valid("json");
+
+    if (!currentUser?.projectId) {
+      return c.json({ error: "Project ID not found for current user" }, 400);
+    }
 
     if (!ids || ids.length === 0) {
       return c.json({ error: "No file IDs provided" }, 400);
     }
+
+    const projectId = Number(currentUser.projectId);
 
     try {
       // First, fetch all the file records to get file paths
@@ -32,13 +38,15 @@ export const deleteFiles = new Hono().post(
           thumbnailPath: files.thumbnailPath,
           path: files.path,
           type: files.type,
+          projectId: files.projectId,
         })
         .from(files)
-        .where(inArray(files.id, ids));
+        .where(and(inArray(files.id, ids), eq(files.projectId, projectId)));
 
       if (filesToDelete.length === 0) {
         return c.json({ error: "No files found with the provided IDs" }, 404);
       }
+
       const results = {
         success: [] as number[],
         failed: [] as Array<{ id: number; error: string }>,
@@ -48,25 +56,25 @@ export const deleteFiles = new Hono().post(
 
       // Begin transaction to ensure data consistency
       await db.transaction(async (trx) => {
-        // Delete file records and their translations
-        await trx.delete(files).where(inArray(files.id, ids));
+        // Delete file records
+        await trx
+          .delete(files)
+          .where(and(inArray(files.id, ids), eq(files.projectId, projectId)));
       });
 
       // After successful DB deletion, delete physical files
-      for (const file of filesToDelete) {
+      const deletePromises = filesToDelete.map(async (file) => {
         try {
           // Delete main file
-          const filePath = path.join(".", file.path);
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+          if (file.path) {
+            console.log(`Deleting file: ${file.path}`);
+            await storage.deleteFile(file.path);
           }
 
           // Delete thumbnail if it's an image type and has a thumbnail
           if (file.type === "image" && file.thumbnailPath) {
-            const thumbnailPath = path.join(".", file.thumbnailPath);
-            if (fs.existsSync(thumbnailPath)) {
-              fs.unlinkSync(thumbnailPath);
-            }
+            console.log(`Deleting thumbnail: ${file.thumbnailPath}`);
+            await storage.deleteFile(file.thumbnailPath);
           }
 
           results.success.push(file.id);
@@ -80,7 +88,10 @@ export const deleteFiles = new Hono().post(
           });
           results.totalFailed++;
         }
-      }
+      });
+
+      // Wait for all delete operations to complete
+      await Promise.all(deletePromises);
 
       return c.json({
         success: true,

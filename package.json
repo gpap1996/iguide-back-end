@@ -8,18 +8,24 @@
     "create-admin": "tsx src/scripts/createAdminUser.ts"
   },
   "dependencies": {
+    "@firebase/storage": "^0.13.12",
     "@hono/node-server": "^1.13.5",
     "@hono/zod-validator": "^0.4.1",
+    "busboy": "^1.6.0",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
     "firebase-admin": "^12.7.0",
+    "fs-extra": "^11.3.0",
     "hono": "^4.6.9",
+    "p-limit": "^6.2.0",
     "pg": "^8.15.6",
     "sharp": "^0.33.5",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.9.0",
     "@types/pg": "^8.15.0",
     "dbmate": "^2.27.0",

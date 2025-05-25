@@ -1,3 +1,4 @@
+import "dotenv/config"; // Ensure this is loaded first
 import { serve } from "@hono/node-server";
 import { app } from "./app";
 
