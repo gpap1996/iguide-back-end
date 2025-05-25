@@ -3,7 +3,7 @@ import { Context } from "hono";
 import Busboy from "busboy";
 import path from "path";
 import { Readable } from "stream";
-import { storage, generateUniqueFilename } from "./fileStorage";
+import { storage, generateUniqueFilename, FILE_LIMITS } from "./fileStorage";
 import pLimit from "p-limit";
 
 // Add debug logging
@@ -66,14 +66,15 @@ export function parseMultipartForm(
     const fields: Record<string, string> = {};
     let fileCount = 0;
     let filesProcessed = 0;
+    let totalSize = 0;
     const processedFiles = new Set<string>(); // Track processed files by ID
 
     debug("Initializing busboy with request headers");
     const busboy = Busboy({
       headers: Object.fromEntries(c.req.raw.headers.entries()),
       limits: {
-        fileSize: options.maxFileSize || 10 * 1024 * 1024,
-        files: 10, // Limit number of files
+        fileSize: options.maxFileSize || FILE_LIMITS.MAX_FILE_SIZE,
+        files: FILE_LIMITS.MAX_FILES_PER_BATCH,
       },
     });
 
@@ -109,14 +110,36 @@ export function parseMultipartForm(
       // Set up data handling
       if (options.processBuffered) {
         const chunks: Buffer[] = [];
-        let totalSize = 0;
+        let fileSize = 0;
 
         fileStream.on("data", (chunk) => {
+          fileSize += chunk.length;
           totalSize += chunk.length;
-          if (totalSize > (options.maxFileSize || 10 * 1024 * 1024)) {
-            fileStream.destroy(new Error("File size exceeds limit"));
+
+          // Check total size limit
+          if (totalSize > FILE_LIMITS.MAX_TOTAL_SIZE) {
+            fileStream.destroy(
+              new Error(
+                `Total upload size exceeds limit of ${
+                  FILE_LIMITS.MAX_TOTAL_SIZE / (1024 * 1024)
+                }MB`
+              )
+            );
             return;
           }
+
+          // Check individual file size limit
+          if (fileSize > (options.maxFileSize || FILE_LIMITS.MAX_FILE_SIZE)) {
+            fileStream.destroy(
+              new Error(
+                `File size exceeds limit of ${
+                  FILE_LIMITS.MAX_FILE_SIZE / (1024 * 1024)
+                }MB`
+              )
+            );
+            return;
+          }
+
           chunks.push(chunk);
         });
 

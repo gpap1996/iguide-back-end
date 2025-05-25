@@ -24,10 +24,11 @@ export const getAreas = new Hono().get("/", requiresManager, async (c) => {
       ? await db
           .select({ areasId: area_translations.areaId })
           .from(area_translations)
+          .innerJoin(areas, eq(areas.id, area_translations.areaId))
           .where(
             and(
               sql<boolean>`unaccent(lower(${area_translations.title})) LIKE unaccent(lower(${searchPattern}))`,
-              sql`(${area_translations.projectId} = ${projectId})`
+              eq(areas.projectId, projectId)
             )
           )
       : [];
@@ -40,7 +41,6 @@ export const getAreas = new Hono().get("/", requiresManager, async (c) => {
           .filter((id): id is number => id !== undefined) //because typescript sucks
       )
     );
-    console.log(areaIds);
 
     // No matches for the title: totalItems is 0, and no need to query further
     if (areaIds.length === 0) {

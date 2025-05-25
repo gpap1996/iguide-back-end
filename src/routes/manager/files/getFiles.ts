@@ -19,20 +19,40 @@ export const getFiles = new Hono().get("/", requiresManager, async (c) => {
   const offset = (page - 1) * limit;
   let fileIds: number[] = [];
   if (title) {
-    // Search in translations
+    // Search in translations and file names
     const translations = await db
       .select({
         fileId: file_translations.fileId,
       })
       .from(file_translations)
+      .innerJoin(files, eq(files.id, file_translations.fileId))
       .where(
         and(
-          eq(file_translations.projectId, currentUser.projectId),
+          eq(files.projectId, currentUser.projectId),
           sql`LOWER(${file_translations.title}) LIKE LOWER(${`%${title}%`})`
         )
       );
 
-    fileIds = translations.map((t) => t.fileId);
+    const fileNames = await db
+      .select({
+        fileId: files.id,
+      })
+      .from(files)
+      .where(
+        and(
+          eq(files.projectId, currentUser.projectId),
+          sql`LOWER(${files.name}) LIKE LOWER(${`%${title}%`})`
+        )
+      );
+
+    //remove duplicates
+    fileIds = Array.from(
+      new Set(
+        [...translations, ...fileNames]
+          .map((item) => item.fileId)
+          .filter((id): id is number => id !== undefined)
+      )
+    );
   }
 
   // Get total count for pagination

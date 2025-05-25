@@ -12,8 +12,6 @@ export const FILE_LIMITS = {
   MAX_FILES_PER_BATCH: 50,
   ALLOWED_IMAGE_TYPES: ["image/jpeg", "image/png", "image/gif", "image/webp"],
   ALLOWED_AUDIO_TYPES: ["audio/mpeg", "audio/wav", "audio/ogg", "audio/m4a"],
-  MAX_IMAGE_DIMENSION: 4096, // 4K resolution
-  THUMBNAIL_SIZE: 300, // 300px for thumbnails
 };
 
 // Interface for storage provider

@@ -148,7 +148,6 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
             return trx
               .insert(file_translations)
               .values({
-                projectId: projectId,
                 fileId: fileId,
                 languageId: language.id,
                 title: translation.title,

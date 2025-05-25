@@ -4,7 +4,6 @@ create table area_translations (
     id SERIAL PRIMARY KEY,
     area_id INTEGER NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
     language_id INTEGER NOT NULL REFERENCES languages(id) ON DELETE CASCADE,
-    project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
     title TEXT,
     subtitle TEXT,
     description TEXT,

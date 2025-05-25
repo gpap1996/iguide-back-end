@@ -152,7 +152,6 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
               }
 
               return trx.insert(file_translations).values({
-                projectId,
                 fileId: savedFile.id,
                 languageId: language.id,
                 title: translation.title,

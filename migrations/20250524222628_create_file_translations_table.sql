@@ -4,7 +4,6 @@ create table file_translations (
     id SERIAL PRIMARY KEY,
     file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
     language_id INTEGER NOT NULL REFERENCES languages(id) ON DELETE CASCADE,
-    project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
     title TEXT,
     description TEXT,
     created_at TIMESTAMP DEFAULT current_timestamp,
