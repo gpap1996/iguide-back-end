@@ -7,6 +7,6 @@ console.log(`Connecting to database at ${process.env.DATABASE_URL}`);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL!,
-  ssl: false,
+  ssl: true,
 });
 export const db = drizzle(pool, { schema });
