@@ -1,7 +1,6 @@
 import sharp from "sharp";
 import path from "path";
-import { Readable } from "stream";
-import { storage, generateUniqueFilename } from "./fileStorage";
+import { storage, FILE_LIMITS } from "./fileStorage";
 
 export const IMAGE_CONFIG = {
   maxWidth: 1200,
@@ -11,116 +10,85 @@ export const IMAGE_CONFIG = {
   acceptedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
 };
 
+// Interface for image optimization options
+export interface ImageOptimizationOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number;
+  format?: "jpeg" | "png" | "webp";
+}
+
+// Default optimization options
+const DEFAULT_OPTIONS: ImageOptimizationOptions = {
+  maxWidth: 1920,
+  maxHeight: 1080,
+  quality: 80,
+  format: "jpeg",
+};
+
 /**
- * Optimizes an image either from a buffer or a stream and returns optimized buffer
+ * Optimizes an image from a buffer and returns optimized buffer
  */
 export async function optimizeImage(
-  source: Buffer | Readable
+  buffer: Buffer,
+  options: ImageOptimizationOptions = {}
 ): Promise<Buffer> {
   try {
-    console.log("Starting image optimization");
+    // Merge default options with provided options
+    const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
-    // Create a transform stream for progressive processing
-    const transform = sharp()
-      .on("error", (err) => {
-        console.error("Sharp processing error:", err);
-      })
-      .resize({
-        width: IMAGE_CONFIG.maxWidth,
-        withoutEnlargement: true,
+    // Create sharp instance
+    let sharpInstance = sharp(buffer);
+
+    // Resize if dimensions are provided
+    if (mergedOptions.maxWidth || mergedOptions.maxHeight) {
+      sharpInstance = sharpInstance.resize({
+        width: mergedOptions.maxWidth,
+        height: mergedOptions.maxHeight,
         fit: "inside",
-      })
-      .jpeg({
-        quality: IMAGE_CONFIG.jpegQuality,
-        mozjpeg: true,
-        progressive: true,
-        force: false,
-      })
-      .withMetadata();
-
-    if (Buffer.isBuffer(source)) {
-      console.log(`Processing buffer input, size: ${source.length} bytes`);
-
-      // Get image info
-      const info = await sharp(source).metadata();
-      console.log(`Original image info: ${JSON.stringify(info)}`);
-
-      // Convert buffer to stream for processing
-      const bufferStream = new Readable();
-      bufferStream.push(source);
-      bufferStream.push(null);
-
-      // Process using streaming pipeline
-      return new Promise((resolve, reject) => {
-        const chunks: Buffer[] = [];
-        const pipeline = bufferStream.pipe(transform);
-
-        pipeline.on("data", (chunk) => {
-          console.log(`Processing chunk of size: ${chunk.length} bytes`);
-          chunks.push(chunk);
-        });
-
-        pipeline.on("end", () => {
-          const result = Buffer.concat(chunks);
-          console.log(
-            `Image optimization complete, output size: ${result.length} bytes`
-          );
-          resolve(result);
-        });
-
-        pipeline.on("error", (err) => {
-          console.error("Pipeline error:", err);
-          reject(err);
-        });
-
-        // Add timeout
-        const timeout = setTimeout(() => {
-          pipeline.destroy();
-          reject(new Error("Image optimization timed out after 30 seconds"));
-        }, 30000);
-
-        pipeline.on("end", () => {
-          clearTimeout(timeout);
-        });
-      });
-    } else {
-      console.log("Processing stream input");
-      return new Promise((resolve, reject) => {
-        const chunks: Buffer[] = [];
-        const pipeline = source.pipe(transform);
-
-        pipeline.on("data", (chunk) => {
-          console.log(`Processing chunk of size: ${chunk.length} bytes`);
-          chunks.push(chunk);
-        });
-
-        pipeline.on("end", () => {
-          const result = Buffer.concat(chunks);
-          console.log(
-            `Stream processing complete, output size: ${result.length} bytes`
-          );
-          resolve(result);
-        });
-
-        pipeline.on("error", (err) => {
-          console.error("Pipeline error:", err);
-          reject(err);
-        });
-
-        // Add timeout
-        const timeout = setTimeout(() => {
-          pipeline.destroy();
-          reject(new Error("Image optimization timed out after 30 seconds"));
-        }, 30000);
-
-        pipeline.on("end", () => {
-          clearTimeout(timeout);
-        });
+        withoutEnlargement: true,
       });
     }
+
+    // Convert to specified format
+    switch (mergedOptions.format) {
+      case "jpeg":
+        sharpInstance = sharpInstance.jpeg({
+          quality: mergedOptions.quality,
+          progressive: true,
+        });
+        break;
+      case "png":
+        sharpInstance = sharpInstance.png({
+          quality: mergedOptions.quality,
+          progressive: true,
+        });
+        break;
+      case "webp":
+        sharpInstance = sharpInstance.webp({
+          quality: mergedOptions.quality,
+        });
+        break;
+    }
+
+    // Process the image
+    const optimizedBuffer = await sharpInstance.toBuffer();
+
+    // Check if the optimized file size is within limits
+    if (optimizedBuffer.length > FILE_LIMITS.MAX_FILE_SIZE) {
+      throw new Error(
+        `Optimized image size (${optimizedBuffer.length} bytes) exceeds maximum allowed size (${FILE_LIMITS.MAX_FILE_SIZE} bytes)`
+      );
+    }
+
+    return optimizedBuffer;
   } catch (error) {
-    console.error("Error in image optimization:", error);
-    throw new Error(`Failed to optimize image: ${error.message}`);
+    console.error("Error optimizing image:", error);
+    throw new Error(
+      `Failed to optimize image: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
   }
 }
 
@@ -129,22 +97,22 @@ export async function optimizeImage(
  * Returns the public URL of the thumbnail
  */
 export async function generateThumbnail(
-  source: Buffer | Readable,
+  source: Buffer,
   originalName: string,
-  projectId: number
+  projectId: number,
+  timestamp?: number
 ): Promise<string> {
   const extension = path.extname(originalName);
-  const thumbnailFileName = `thumb-${generateUniqueFilename(originalName)}`;
-  const thumbnailStoragePath = `project-${projectId}/${thumbnailFileName}`;
+  const baseName = path.basename(originalName, extension);
+  const fileTimestamp = timestamp || Date.now();
+  const thumbnailName = `thumb_${fileTimestamp}_${baseName}${extension}`;
+  const thumbnailStoragePath = `project-${projectId}/images/thumbnails/${thumbnailName}`;
 
   try {
     console.log("Starting thumbnail generation");
 
-    // Create a transform stream for thumbnail
-    const transform = sharp()
-      .on("error", (err) => {
-        console.error("Sharp thumbnail error:", err);
-      })
+    console.log("Processing thumbnail from buffer");
+    const thumbnailBuffer = await sharp(source)
       .resize({
         width: IMAGE_CONFIG.thumbnailWidth,
         fit: "contain",
@@ -154,55 +122,11 @@ export async function generateThumbnail(
         progressive: true,
         force: false,
       })
-      .withMetadata();
-
-    // Process using streaming pipeline
-    const thumbnailBuffer = await new Promise<Buffer>((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      let inputStream: Readable;
-
-      if (Buffer.isBuffer(source)) {
-        console.log("Processing thumbnail from buffer");
-        inputStream = new Readable();
-        inputStream.push(source);
-        inputStream.push(null);
-      } else {
-        console.log("Processing thumbnail from stream");
-        inputStream = source;
-      }
-
-      const pipeline = inputStream.pipe(transform);
-
-      pipeline.on("data", (chunk) => {
-        console.log(
-          `Processing thumbnail chunk of size: ${chunk.length} bytes`
-        );
-        chunks.push(chunk);
-      });
-
-      pipeline.on("end", () => {
-        const result = Buffer.concat(chunks);
-        console.log(
-          `Thumbnail generation complete, size: ${result.length} bytes`
-        );
-        resolve(result);
-      });
-
-      pipeline.on("error", (err) => {
-        console.error("Thumbnail pipeline error:", err);
-        reject(err);
-      });
-
-      // Add timeout
-      const timeout = setTimeout(() => {
-        pipeline.destroy();
-        reject(new Error("Thumbnail generation timed out after 15 seconds"));
-      }, 15000);
-
-      pipeline.on("end", () => {
-        clearTimeout(timeout);
-      });
-    });
+      .withMetadata()
+      .toBuffer();
+    console.log(
+      `Thumbnail generation complete, size: ${thumbnailBuffer.length} bytes`
+    );
 
     console.log("Uploading thumbnail to storage");
     const thumbnailUrl = await storage.saveFile(
@@ -233,4 +157,37 @@ export async function optimizeImageBuffer(buffer: Buffer): Promise<Buffer> {
       mozjpeg: true,
     })
     .toBuffer();
+}
+
+// Function to validate image dimensions
+export async function validateImageDimensions(
+  buffer: Buffer,
+  maxWidth: number = DEFAULT_OPTIONS.maxWidth!,
+  maxHeight: number = DEFAULT_OPTIONS.maxHeight!
+): Promise<boolean> {
+  try {
+    const metadata = await sharp(buffer).metadata();
+    return (
+      (metadata.width || 0) <= maxWidth && (metadata.height || 0) <= maxHeight
+    );
+  } catch (error) {
+    console.error("Error validating image dimensions:", error);
+    return false;
+  }
+}
+
+// Function to get image metadata
+export async function getImageMetadata(
+  buffer: Buffer
+): Promise<sharp.Metadata> {
+  try {
+    return await sharp(buffer).metadata();
+  } catch (error) {
+    console.error("Error getting image metadata:", error);
+    throw new Error(
+      `Failed to get image metadata: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
 }

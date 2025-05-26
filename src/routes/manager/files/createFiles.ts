@@ -8,10 +8,9 @@ import {
   IMAGE_CONFIG,
 } from "../../../utils/imageOptimization";
 import {
-  parseMultipartForm,
-  processUploadedFiles,
   UploadedFile,
-} from "../../../utils/streamUpload";
+  parseMultipartFormBuffer,
+} from "../../../utils/fileUpload";
 import pLimit from "p-limit";
 import { storage } from "../../../utils/fileStorage";
 
@@ -56,12 +55,13 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
 
     const projectId = Number(currentUser.projectId);
 
-    const { files: uploadedFiles, fields } = await parseMultipartForm(c, {
-      projectId,
-      processBuffered: true,
-      maxConcurrency: 1,
-      maxFileSize: 50 * 1024 * 1024,
-    });
+    // Read the body as a buffer
+    const arrayBuffer = await c.req.arrayBuffer();
+    const contentType = c.req.header("content-type") || "";
+    const { files: uploadedFiles, fields } = parseMultipartFormBuffer(
+      Buffer.from(arrayBuffer),
+      contentType
+    );
 
     const type = fields.type;
 
@@ -91,7 +91,7 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
     for (const file of uploadedFiles) {
       if (!allowedMimeTypes.includes(file.mimetype)) {
         errors.push({
-          name: file.filename,
+          name: file.originalname,
           error: `Invalid ${type} format. File type ${file.mimetype} is not allowed.`,
         });
         continue;
@@ -103,41 +103,39 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
     const fileProcessingPromises = validFiles.map((file) =>
       concurrencyLimit(async () => {
         try {
-          const originalName = file.filename;
+          const originalName = file.originalname;
           let fileUrl: string;
           let thumbnailUrl: string | undefined;
 
-          if (!file.fileBuffer && !file.fileStream) {
-            throw new Error("No file data available");
-          }
-
           const timestamp = Date.now();
-          const storagePath = `project-${projectId}/file-${timestamp}-${originalName}`;
-          const source = file.fileBuffer || file.fileStream;
+          const storagePath =
+            type === "image"
+              ? `project-${projectId}/images/${timestamp}-${originalName}`
+              : `project-${projectId}/audio/${timestamp}-${originalName}`;
 
-          fileUrl = await retryOperation(async () => {
-            if (type === "image" && file.fileBuffer) {
-              console.log("Optimizing image before upload");
-              const optimizedBuffer = await optimizeImage(file.fileBuffer);
+          if (type === "image") {
+            console.log("Optimizing image before upload");
+            const optimizedBuffer = await optimizeImage(file.buffer);
+            fileUrl = await retryOperation(async () => {
               return await storage.saveFile(optimizedBuffer, storagePath);
-            }
-            return await storage.saveFile(source, storagePath);
-          });
+            });
 
-          if (type === "image" && file.fileBuffer) {
             try {
-              const buffer = file.fileBuffer;
-              if (!buffer) {
-                throw new Error(
-                  "No file buffer available for thumbnail generation"
-                );
-              }
               thumbnailUrl = await retryOperation(async () => {
-                return await generateThumbnail(buffer, originalName, projectId);
+                return await generateThumbnail(
+                  file.buffer,
+                  originalName,
+                  projectId,
+                  timestamp
+                );
               });
             } catch (error) {
               console.error("Thumbnail generation failed:", error);
             }
+          } else {
+            fileUrl = await retryOperation(async () => {
+              return await storage.saveFile(file.buffer, storagePath);
+            });
           }
 
           const [savedFile] = await retryOperation(async () => {
@@ -156,7 +154,7 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
           return savedFile;
         } catch (error) {
           throw new Error(
-            `Error processing ${file.filename}: ${error.message}`
+            `Error processing ${file.originalname}: ${error.message}`
           );
         }
       })

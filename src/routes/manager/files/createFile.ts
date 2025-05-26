@@ -10,7 +10,7 @@ import {
   generateThumbnail,
   IMAGE_CONFIG,
 } from "../../../utils/imageOptimization";
-import { parseMultipartForm } from "../../../utils/streamUpload";
+import { parseMultipartFormBuffer } from "../../../utils/fileUpload";
 import { storage } from "../../../utils/fileStorage";
 
 interface Translation {
@@ -19,9 +19,7 @@ interface Translation {
 }
 
 interface Metadata {
-  translations: {
-    [key: string]: Translation;
-  };
+  translations?: Record<string, Translation>;
 }
 
 // Create files endpoint
@@ -36,12 +34,13 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
 
   try {
     console.log("Starting file upload process");
-    const { files: uploadedFiles, fields } = await parseMultipartForm(c, {
-      projectId,
-      processBuffered: true,
-      maxConcurrency: 1,
-      maxFileSize: 50 * 1024 * 1024,
-    });
+    // Read the body as a buffer
+    const arrayBuffer = await c.req.arrayBuffer();
+    const contentType = c.req.header("content-type") || "";
+    const { files: uploadedFiles, fields } = parseMultipartFormBuffer(
+      Buffer.from(arrayBuffer),
+      contentType
+    );
 
     console.log("Multipart form parsed successfully");
     const type = fields.type;
@@ -52,7 +51,7 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
     }
 
     const uploadedFile = uploadedFiles[0];
-    console.log(`Processing file: ${uploadedFile.filename}`);
+    console.log(`Processing file: ${uploadedFile.originalname}`);
 
     if (!type) {
       return c.json({ error: "No type provided" }, 400);
@@ -69,7 +68,7 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
       return c.json({ error: "Invalid metadata format" }, 400);
     }
 
-    const originalName = uploadedFile.filename;
+    const originalName = uploadedFile.originalname;
     const isImage = IMAGE_CONFIG.acceptedMimeTypes.includes(
       uploadedFile.mimetype
     );
@@ -79,11 +78,12 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
 
     try {
       console.log(`Starting file processing for ${originalName}`);
-      if (isImage && uploadedFile.fileBuffer) {
+      const timestamp = Date.now();
+
+      if (isImage) {
         console.log("Processing image file");
-        const optimizedBuffer = await optimizeImage(uploadedFile.fileBuffer);
-        const timestamp = Date.now();
-        const storagePath = `project-${projectId}/file-${timestamp}-${originalName}`;
+        const optimizedBuffer = await optimizeImage(uploadedFile.buffer);
+        const storagePath = `project-${projectId}/images/${timestamp}-${originalName}`;
 
         console.log(`Uploading optimized image to ${storagePath}`);
         fileUrl = await storage.saveFile(optimizedBuffer, storagePath);
@@ -92,26 +92,21 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
         try {
           console.log("Generating thumbnail");
           thumbnailUrl = await generateThumbnail(
-            uploadedFile.fileBuffer,
+            uploadedFile.buffer,
             originalName,
-            projectId
+            projectId,
+            timestamp
           );
           console.log(`Thumbnail generated: ${thumbnailUrl}`);
         } catch (thumbnailError) {
           console.error("Thumbnail generation failed:", thumbnailError);
         }
       } else {
-        console.log("Processing non-image file");
-        const timestamp = Date.now();
-        const storagePath = `project-${projectId}/file-${timestamp}-${originalName}`;
-        const source = uploadedFile.fileBuffer || uploadedFile.fileStream;
-
-        if (!source) {
-          throw new Error("No file data available for upload");
-        }
+        console.log("Processing audio file");
+        const storagePath = `project-${projectId}/audio/${timestamp}-${originalName}`;
 
         console.log(`Uploading file to ${storagePath}`);
-        fileUrl = await storage.saveFile(source, storagePath);
+        fileUrl = await storage.saveFile(uploadedFile.buffer, storagePath);
         console.log(`File uploaded successfully: ${fileUrl}`);
       }
 

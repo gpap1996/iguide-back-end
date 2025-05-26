@@ -16,20 +16,14 @@ export const FILE_LIMITS = {
 
 // Interface for storage provider
 export interface StorageProvider {
-  saveFile(
-    fileBuffer: Buffer | NodeJS.ReadableStream,
-    filePath: string
-  ): Promise<string>;
-
+  saveFile(fileBuffer: Buffer, filePath: string): Promise<string>;
   getFileUrl(filePath: string): string;
-
   deleteFile(filePath: string): Promise<void>;
 }
 
 // Firebase Storage implementation
 export class FirebaseStorage implements StorageProvider {
   private bucketName: string;
-  private readonly CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY = 1000; // 1 second
   private readonly UPLOAD_TIMEOUT = 30000; // 30 seconds
@@ -63,154 +57,34 @@ export class FirebaseStorage implements StorageProvider {
     throw lastError || new Error("Operation failed after all retries");
   }
 
-  async saveFile(
-    fileBuffer: Buffer | NodeJS.ReadableStream,
-    filePath: string
-  ): Promise<string> {
+  async saveFile(fileBuffer: Buffer, filePath: string): Promise<string> {
     try {
-      // Check file size if it's a buffer
-      if (Buffer.isBuffer(fileBuffer)) {
-        if (fileBuffer.length > FILE_LIMITS.MAX_FILE_SIZE) {
-          throw new Error(
-            `File size exceeds maximum limit of ${
-              FILE_LIMITS.MAX_FILE_SIZE / (1024 * 1024)
-            }MB`
-          );
-        }
-      }
-
       const file = bucket.file(filePath);
       const contentType = this.getContentType(filePath);
 
-      // Validate content type
-      if (
-        ![
-          ...FILE_LIMITS.ALLOWED_IMAGE_TYPES,
-          ...FILE_LIMITS.ALLOWED_AUDIO_TYPES,
-        ].includes(contentType)
-      ) {
-        throw new Error(
-          `File type ${contentType} is not allowed. Allowed types are: ${[
-            ...FILE_LIMITS.ALLOWED_IMAGE_TYPES,
-            ...FILE_LIMITS.ALLOWED_AUDIO_TYPES,
-          ].join(", ")}`
-        );
-      }
-
-      // Add timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
+      // Create a timeout promise
+      const timeoutPromise = new Promise<string>((_, reject) => {
         setTimeout(() => {
-          reject(
-            new Error(
-              `Upload timed out after ${
-                this.UPLOAD_TIMEOUT / 1000
-              } seconds for ${filePath}`
-            )
-          );
+          reject(new Error(`Upload timed out after ${this.UPLOAD_TIMEOUT}ms`));
         }, this.UPLOAD_TIMEOUT);
       });
 
-      // Create upload promise
       const uploadPromise = new Promise<string>(async (resolve, reject) => {
         try {
-          if (Buffer.isBuffer(fileBuffer)) {
-            // For buffers, use chunked upload if size is large
-            if (fileBuffer.length > this.CHUNK_SIZE) {
-              console.log(
-                `Using chunked upload for large file (${fileBuffer.length} bytes)`
-              );
-              await this.retryOperation(async () => {
-                const uploadStream = file.createWriteStream({
-                  contentType,
-                  resumable: true,
-                  public: true,
-                  timeout: this.UPLOAD_TIMEOUT,
-                  metadata: {
-                    cacheControl: "public, max-age=31536000", // 1 year cache
-                  },
-                });
-
-                // Split buffer into chunks and upload
-                for (let i = 0; i < fileBuffer.length; i += this.CHUNK_SIZE) {
-                  const chunk = fileBuffer.slice(i, i + this.CHUNK_SIZE);
-                  await new Promise<void>((resolveChunk, rejectChunk) => {
-                    uploadStream.write(chunk, (err) => {
-                      if (err) rejectChunk(err);
-                      else resolveChunk();
-                    });
-                  });
-                }
-
-                await new Promise<void>((resolveEnd, rejectEnd) => {
-                  uploadStream.end((error: Error | null) => {
-                    if (error) rejectEnd(error);
-                    else resolveEnd();
-                  });
-                });
-              });
-            } else {
-              // For smaller files, use direct upload
-              console.log(
-                `Using direct upload for small file (${fileBuffer.length} bytes)`
-              );
-              await this.retryOperation(async () => {
-                await file.save(fileBuffer, {
-                  contentType,
-                  public: true,
-                  resumable: false,
-                  metadata: {
-                    cacheControl: "public, max-age=31536000", // 1 year cache
-                  },
-                });
-              });
-            }
-          } else {
-            // For streams, use resumable upload
-            console.log("Using stream upload");
-            await this.retryOperation(async () => {
-              await new Promise<void>((resolveStream, rejectStream) => {
-                const uploadStream = file.createWriteStream({
-                  contentType,
-                  resumable: true,
-                  public: true,
-                  timeout: this.UPLOAD_TIMEOUT,
-                  metadata: {
-                    cacheControl: "public, max-age=31536000", // 1 year cache
-                  },
-                });
-
-                uploadStream.on("error", (err: Error) => {
-                  rejectStream(err);
-                });
-
-                uploadStream.on("finish", () => {
-                  resolveStream();
-                });
-
-                if (typeof (fileBuffer as any).pipe === "function") {
-                  (fileBuffer as any).pipe(uploadStream);
-                  (fileBuffer as any).on("error", (err: Error) => {
-                    rejectStream(err);
-                  });
-                } else {
-                  (async () => {
-                    try {
-                      const chunks: Buffer[] = [];
-                      for await (const chunk of fileBuffer) {
-                        chunks.push(
-                          Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-                        );
-                      }
-                      const buffer = Buffer.concat(chunks);
-                      uploadStream.end(buffer);
-                    } catch (err) {
-                      rejectStream(err);
-                    }
-                  })();
-                }
-              });
+          // For smaller files, use direct upload
+          console.log(
+            `Using direct upload for file (${fileBuffer.length} bytes)`
+          );
+          await this.retryOperation(async () => {
+            await file.save(fileBuffer, {
+              contentType,
+              public: true,
+              resumable: false,
+              metadata: {
+                cacheControl: "public, max-age=31536000", // 1 year cache
+              },
             });
-          }
+          });
 
           await file.makePublic();
           // Return just the file path instead of the full URL

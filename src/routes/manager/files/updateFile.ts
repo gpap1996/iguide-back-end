@@ -71,7 +71,8 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
       const originalName = file.name;
       const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(originalName);
       const timestamp = Date.now();
-      const storagePath = `project-${projectId}/file-${timestamp}-${originalName}`;
+      const fileType = isImage ? "images" : "audio";
+      const storagePath = `project-${projectId}/${fileType}/${timestamp}-${originalName}`;
 
       console.log(`Processing file update for ${originalName}`);
       const arrayBuffer = await file.arrayBuffer();
@@ -89,14 +90,15 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
           newThumbnailPath = await generateThumbnail(
             buffer,
             originalName,
-            projectId
+            projectId,
+            timestamp
           );
           console.log(`Thumbnail generated: ${newThumbnailPath}`);
         } catch (thumbnailError) {
           console.error("Thumbnail generation failed:", thumbnailError);
         }
       } else {
-        console.log("Processing non-image file");
+        console.log("Processing audio file");
         newUrl = await storage.saveFile(buffer, storagePath);
         console.log(`File uploaded successfully: ${newUrl}`);
       }

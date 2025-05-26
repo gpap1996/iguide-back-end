@@ -45,7 +45,10 @@ FILE_LIMITS = {
 
 ### 2. File Storage
 
-- **Path Structure**: `project-{projectId}/file-{timestamp}-{originalName}`
+- **Path Structure**:
+  - Images: `project-{projectId}/images/{timestamp}-{originalName}`
+  - Audio: `project-{projectId}/audio/{timestamp}-{originalName}`
+  - Thumbnails: `project-{projectId}/images/thumbnails/thumb_{timestamp}_{baseName}{extension}`
 - **Storage Features**:
   - Chunked uploads for large files (5MB chunks)
   - Automatic retry mechanism (3 attempts)
@@ -139,9 +142,9 @@ Response:
       "id": 1,
       "name": "example.jpg",
       "type": "image",
-      "path": "project-123/file-1234567890-example.jpg",
+      "path": "project-123/images/1234567890-example.jpg",
       "url": "https://firebasestorage.googleapis.com/...",
-      "thumbnailPath": "project-123/thumb-1234567890-example.jpg",
+      "thumbnailPath": "project-123/images/thumbnails/thumb_1234567890_example.jpg",
       "thumbnailUrl": "https://firebasestorage.googleapis.com/...",
       "translations": [
         {
@@ -179,9 +182,9 @@ Response:
     {
       "id": 1,
       "name": "example.jpg",
-      "path": "project-123/file-1234567890-example.jpg",
+      "path": "project-123/images/1234567890-example.jpg",
       "url": "https://firebasestorage.googleapis.com/...",
-      "thumbnailPath": "project-123/thumb-1234567890-example.jpg",
+      "thumbnailPath": "project-123/images/thumbnails/thumb_1234567890_example.jpg",
       "thumbnailUrl": "https://firebasestorage.googleapis.com/..."
     }
   ]
