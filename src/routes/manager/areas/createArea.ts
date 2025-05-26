@@ -16,7 +16,7 @@ const schema = z.object({
   parentId: z.number().optional(),
   weight: z.number().optional(),
   images: z.array(z.number()).optional(),
-  sound: z.string().optional(),
+  audio: z.array(z.number()).optional(),
   translations: z
     .record(
       z.string(), // Language code as the key
@@ -74,23 +74,20 @@ export const createArea = new Hono().post(
                 );
               }
 
-              return trx
-                .insert(area_translations)
-                .values({
-                  projectId,
-                  areaId: insertedArea.id,
-                  languageId: language.id,
-                  title: translation.title,
-                  subtitle: translation.subtitle,
-                  description: translation.description,
-                })
-                .execute();
+              return trx.insert(area_translations).values({
+                areaId: insertedArea.id,
+                languageId: language.id,
+                title: translation.title,
+                subtitle: translation.subtitle,
+                description: translation.description,
+              });
             }
           );
 
           await Promise.all(translationPromises);
         }
 
+        // 3. Handle image files
         if (area.images && area.images.length > 0) {
           const filesPromises = area.images.map(async (fileId) => {
             const [foundFile] = await db
@@ -101,19 +98,40 @@ export const createArea = new Hono().post(
               .where(eq(files.id, fileId));
 
             if (!foundFile) {
-              throw new Error(`File not found for id: ${fileId}`);
+              throw new Error(`Image file not found for id: ${fileId}`);
             }
 
-            return trx
-              .insert(area_files)
-              .values({
-                areaId: insertedArea.id,
-                fileId: foundFile.id,
-              })
-              .execute();
+            return trx.insert(area_files).values({
+              areaId: insertedArea.id,
+              fileId: foundFile.id,
+            });
           });
           await Promise.all(filesPromises);
         }
+
+        // 4. Handle audio files
+        if (area.audio && area.audio.length > 0) {
+          const audioPromises = area.audio.map(async (fileId) => {
+            const [foundFile] = await db
+              .select({
+                id: files.id,
+              })
+              .from(files)
+              .where(eq(files.id, fileId));
+
+            if (!foundFile) {
+              throw new Error(`Audio file not found for id: ${fileId}`);
+            }
+
+            return trx.insert(area_files).values({
+              areaId: insertedArea.id,
+              fileId: foundFile.id,
+            });
+          });
+          await Promise.all(audioPromises);
+        }
+
+        return insertedArea;
       });
 
       return c.json({
@@ -122,7 +140,7 @@ export const createArea = new Hono().post(
       });
     } catch (error) {
       return c.json({
-        error: "Failed to create file",
+        error: "Failed to create area",
         details: error instanceof Error ? error.message : "Unknown error",
       });
     }

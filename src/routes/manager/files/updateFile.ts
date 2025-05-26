@@ -187,8 +187,7 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
         // Delete existing translations
         await trx
           .delete(file_translations)
-          .where(eq(file_translations.fileId, fileId))
-          .execute();
+          .where(eq(file_translations.fileId, fileId));
 
         // Insert new translations
         const translationPromises = Object.entries(metadata.translations).map(
@@ -207,15 +206,12 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
               throw new Error(`Language not found for locale: ${locale}`);
             }
 
-            return trx
-              .insert(file_translations)
-              .values({
-                fileId: fileId,
-                languageId: language.id,
-                title: translation.title,
-                description: translation.description,
-              })
-              .execute();
+            return trx.insert(file_translations).values({
+              fileId: fileId,
+              languageId: language.id,
+              title: translation.title,
+              description: translation.description,
+            });
           }
         );
 

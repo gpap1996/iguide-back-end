@@ -64,7 +64,9 @@ export const getSingleArea = new Hono().get(
       images: area_files
         .filter((m) => m.files.type === "image")
         .map((m) => m.fileId),
-      audio: area_files.find((m) => m.files.type === "audio")?.fileId || null,
+      audio: area_files
+        .filter((m) => m.files.type === "audio")
+        .map((m) => m.fileId),
     };
 
     return c.json({ area });

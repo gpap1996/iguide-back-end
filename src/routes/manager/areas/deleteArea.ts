@@ -15,7 +15,7 @@ export const deleteArea = new Hono().delete(
     }
 
     try {
-      await db.delete(areas).where(eq(areas.id, areaId)).execute();
+      await db.delete(areas).where(eq(areas.id, areaId));
       return c.json({ message: `Area with ID ${areaId} deleted successfully` });
     } catch (error) {
       console.error("Error deleting area:", error);
