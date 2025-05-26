@@ -5,12 +5,9 @@ import { requiresManager } from "../../../middleware/requiresManager";
 import {
   optimizeImage,
   generateThumbnail,
-  IMAGE_CONFIG,
 } from "../../../utils/imageOptimization";
-import { UploadedFile } from "../../../utils/fileUpload";
 import pLimit from "p-limit";
-import { storage } from "../../../utils/fileStorage";
-import { FILE_LIMITS } from "../../../utils/fileStorage";
+import { storage, FILE_LIMITS } from "../../../utils/fileStorage";
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -78,7 +75,7 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
         ? FILE_LIMITS.ALLOWED_IMAGE_TYPES
         : FILE_LIMITS.ALLOWED_AUDIO_TYPES;
 
-    const validFiles: UploadedFile[] = [];
+    const validFiles = [];
     const errors = [];
 
     // Convert Files to UploadedFile format and validate
