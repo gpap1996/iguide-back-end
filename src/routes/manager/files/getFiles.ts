@@ -11,9 +11,15 @@ export const getFiles = new Hono().get("/", requiresManager, async (c) => {
   const title = c.req.query("title");
   const limit = parseInt(c.req.query("limit") || "10", 10);
   const page = parseInt(c.req.query("page") || "1", 10);
-
-  if (!currentUser?.projectId) {
-    return c.json({ error: "Project ID not found for current user" }, 400);
+  const projectId = Number(currentUser.projectId);
+  if (!projectId) {
+    return c.json(
+      {
+        error: "Project ID not found for current user",
+        details: "Please contact support if this issue persists.",
+      },
+      400
+    );
   }
 
   const offset = (page - 1) * limit;
@@ -28,7 +34,7 @@ export const getFiles = new Hono().get("/", requiresManager, async (c) => {
       .innerJoin(files, eq(files.id, file_translations.fileId))
       .where(
         and(
-          eq(files.projectId, currentUser.projectId),
+          eq(files.projectId, projectId),
           sql`LOWER(${file_translations.title}) LIKE LOWER(${`%${title}%`})`
         )
       );
@@ -40,7 +46,7 @@ export const getFiles = new Hono().get("/", requiresManager, async (c) => {
       .from(files)
       .where(
         and(
-          eq(files.projectId, currentUser.projectId),
+          eq(files.projectId, projectId),
           sql`LOWER(${files.name}) LIKE LOWER(${`%${title}%`})`
         )
       );
@@ -68,7 +74,7 @@ export const getFiles = new Hono().get("/", requiresManager, async (c) => {
         value: count(),
       })
       .from(files)
-      .where(eq(files.projectId, currentUser.projectId));
+      .where(eq(files.projectId, projectId));
 
     totalItems = Number(value);
     totalPages = Math.ceil(totalItems / limit);
@@ -87,7 +93,7 @@ export const getFiles = new Hono().get("/", requiresManager, async (c) => {
 
   const where = title
     ? inArray(files.id, fileIds)
-    : eq(files.projectId, currentUser.projectId);
+    : eq(files.projectId, projectId);
   // Fetch paginated items
   let filesQuery = db.query.files.findMany({
     where,
