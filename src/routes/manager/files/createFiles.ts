@@ -43,29 +43,47 @@ async function retryOperation<T>(
 export const createFiles = new Hono().post("/", requiresManager, async (c) => {
   try {
     const currentUser = c.get("currentUser");
-
-    if (!currentUser?.projectId) {
-      return c.json({ error: "Project ID not found for current user" }, 400);
-    }
-
     const projectId = Number(currentUser.projectId);
-
-    // Use Hono's built-in form data parsing
     const formData = await c.req.formData();
     const fileList = formData.getAll("files") as File[];
     const type = formData.get("type") as string | null;
 
+    if (!projectId) {
+      return c.json(
+        {
+          error: "Project ID not found for current user",
+          details: "Please contact support if this issue persists.",
+        },
+        400
+      );
+    }
+
     if (!fileList || fileList.length === 0) {
-      return c.json({ error: "No files provided" }, 400);
+      return c.json(
+        {
+          error: "No files provided",
+          details: "Please upload at least one file to continue.",
+        },
+        400
+      );
     }
 
     if (!type) {
-      return c.json({ error: "No type provided" }, 400);
+      return c.json(
+        {
+          error: "No type provided",
+          details: "Please select a file type to continue.",
+        },
+        400
+      );
     }
 
     if (type !== "image" && type !== "audio") {
       return c.json(
-        { error: "Invalid file type. Only 'image' and 'audio' are allowed" },
+        {
+          error: "Invalid file type. Only 'image' and 'audio' are allowed",
+          details: "Please select a valid file type to continue.",
+        },
         400
       );
     }

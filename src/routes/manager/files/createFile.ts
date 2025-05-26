@@ -23,12 +23,17 @@ interface Metadata {
 
 export const createFile = new Hono().post("/", requiresManager, async (c) => {
   const currentUser = c.get("currentUser");
-
-  if (!currentUser?.projectId) {
-    return c.json({ error: "Project ID not found for current user" }, 400);
-  }
-
   const projectId = Number(currentUser.projectId);
+
+  if (!projectId) {
+    return c.json(
+      {
+        error: "Project ID not found for current user",
+        details: "Please contact support if this issue persists.",
+      },
+      400
+    );
+  }
 
   try {
     const formData = await c.req.formData();

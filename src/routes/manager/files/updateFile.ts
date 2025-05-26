@@ -35,7 +35,13 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
   const projectId = Number(currentUser.projectId);
 
   if (!projectId) {
-    return c.json({ error: "Project ID not found for current user" }, 400);
+    return c.json(
+      {
+        error: "Project ID not found for current user",
+        details: "Please contact support if this issue persists.",
+      },
+      400
+    );
   }
 
   if (!fileId) {
