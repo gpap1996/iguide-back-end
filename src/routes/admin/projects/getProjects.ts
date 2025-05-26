@@ -46,6 +46,7 @@ export const getProjects = new Hono().get("/", requiresAdmin, async (c) => {
         description: true,
         status: true,
         createdAt: true,
+        imageUrl: true,
       },
       where: filter ? () => filter : undefined,
       orderBy: (projects, { desc }) => [desc(projects.createdAt)],
