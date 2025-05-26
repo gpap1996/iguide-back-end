@@ -10,10 +10,17 @@ export const getFilesDropdown = new Hono().get(
   requiresManager,
   async (c) => {
     const currentUser = c.get("currentUser");
-    if (!currentUser?.projectId) {
-      return c.json({ error: "Project ID not found for current user" }, 400);
-    }
     const projectId = Number(currentUser.projectId);
+
+    if (!projectId) {
+      return c.json(
+        {
+          error: "Project ID not found for current user",
+          details: "Please contact support if this issue persists.",
+        },
+        400
+      );
+    }
 
     try {
       const result = await db
@@ -22,6 +29,7 @@ export const getFilesDropdown = new Hono().get(
           name: files.name,
           thumbnailPath: files.thumbnailPath,
           path: files.path,
+          type: files.type,
         })
         .from(files)
         .where(eq(files.projectId, projectId))
