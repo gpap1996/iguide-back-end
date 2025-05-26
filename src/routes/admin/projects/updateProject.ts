@@ -69,7 +69,7 @@ export const updateProject = new Hono().put(
         }
 
         const fileExtension = file.name.split(".").pop();
-        const fileName = `projects/${id}/${Date.now()}.${fileExtension}`;
+        const fileName = `projects-${id}/${Date.now()}.${fileExtension}`;
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const fileRef = bucket.file(fileName);
