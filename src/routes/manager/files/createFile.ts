@@ -10,7 +10,6 @@ import {
   generateThumbnail,
   IMAGE_CONFIG,
 } from "../../../utils/imageOptimization";
-import { parseMultipartFormBuffer } from "../../../utils/fileUpload";
 import { storage, FILE_LIMITS } from "../../../utils/fileStorage";
 
 interface Translation {
@@ -34,24 +33,19 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
 
   try {
     console.log("Starting file upload process");
-    // Read the body as a buffer
-    const arrayBuffer = await c.req.arrayBuffer();
-    const contentType = c.req.header("content-type") || "";
-    const { files: uploadedFiles, fields } = parseMultipartFormBuffer(
-      Buffer.from(arrayBuffer),
-      contentType
-    );
+    // Use Hono's built-in form data parsing
+    const formData = await c.req.formData();
+    const uploadedFile = formData.get("file") as File | null;
+    const type = formData.get("type") as string | null;
+    const metadataStr = formData.get("metadata") as string | null;
 
-    console.log("Multipart form parsed successfully");
-    const type = fields.type;
-    const metadataStr = fields.metadata;
+    console.log("Form data parsed successfully");
 
-    if (uploadedFiles.length === 0) {
+    if (!uploadedFile) {
       return c.json({ error: "No file provided" }, 400);
     }
 
-    const uploadedFile = uploadedFiles[0];
-    console.log(`Processing file: ${uploadedFile.originalname}`);
+    console.log(`Processing file: ${uploadedFile.name}`);
 
     if (!type) {
       return c.json({ error: "No type provided" }, 400);
@@ -61,24 +55,28 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
       return c.json({ error: "No metadata provided" }, 400);
     }
 
+    // Convert File to buffer
+    const arrayBuffer = await uploadedFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     // Validate file type early
     if (type === "audio") {
-      if (!FILE_LIMITS.ALLOWED_AUDIO_TYPES.includes(uploadedFile.mimetype)) {
+      if (!FILE_LIMITS.ALLOWED_AUDIO_TYPES.includes(uploadedFile.type)) {
         return c.json(
           {
             error: "Invalid audio format",
-            details: `Only MP3 files are supported. Received: ${uploadedFile.mimetype}`,
+            details: `Only MP3 files are supported. Received: ${uploadedFile.type}`,
           },
           400
         );
       }
     } else if (type === "image") {
-      if (!FILE_LIMITS.ALLOWED_IMAGE_TYPES.includes(uploadedFile.mimetype)) {
+      if (!FILE_LIMITS.ALLOWED_IMAGE_TYPES.includes(uploadedFile.type)) {
         return c.json(
           {
             error: "Invalid image format",
             details: `File type ${
-              uploadedFile.mimetype
+              uploadedFile.type
             } is not allowed. Allowed types: ${FILE_LIMITS.ALLOWED_IMAGE_TYPES.join(
               ", "
             )}`,
@@ -109,10 +107,8 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
       }
     }
 
-    const originalName = uploadedFile.originalname;
-    const isImage = IMAGE_CONFIG.acceptedMimeTypes.includes(
-      uploadedFile.mimetype
-    );
+    const originalName = uploadedFile.name;
+    const isImage = IMAGE_CONFIG.acceptedMimeTypes.includes(uploadedFile.type);
 
     let fileUrl: string;
     let thumbnailUrl: string | undefined;
@@ -123,7 +119,7 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
 
       if (isImage) {
         console.log("Processing image file");
-        const optimizedBuffer = await optimizeImage(uploadedFile.buffer);
+        const optimizedBuffer = await optimizeImage(buffer);
         const storagePath = `project-${projectId}/images/${timestamp}-${originalName}`;
 
         console.log(`Uploading optimized image to ${storagePath}`);
@@ -133,7 +129,7 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
         try {
           console.log("Generating thumbnail");
           thumbnailUrl = await generateThumbnail(
-            uploadedFile.buffer,
+            buffer,
             originalName,
             projectId,
             timestamp
@@ -147,7 +143,7 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
         const storagePath = `project-${projectId}/audio/${timestamp}-${originalName}`;
 
         console.log(`Uploading file to ${storagePath}`);
-        fileUrl = await storage.saveFile(uploadedFile.buffer, storagePath);
+        fileUrl = await storage.saveFile(buffer, storagePath);
         console.log(`File uploaded successfully: ${fileUrl}`);
       }
 

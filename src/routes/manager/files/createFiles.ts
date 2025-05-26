@@ -7,10 +7,7 @@ import {
   generateThumbnail,
   IMAGE_CONFIG,
 } from "../../../utils/imageOptimization";
-import {
-  UploadedFile,
-  parseMultipartFormBuffer,
-} from "../../../utils/fileUpload";
+import { UploadedFile } from "../../../utils/fileUpload";
 import pLimit from "p-limit";
 import { storage } from "../../../utils/fileStorage";
 import { FILE_LIMITS } from "../../../utils/fileStorage";
@@ -56,17 +53,12 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
 
     const projectId = Number(currentUser.projectId);
 
-    // Read the body as a buffer
-    const arrayBuffer = await c.req.arrayBuffer();
-    const contentType = c.req.header("content-type") || "";
-    const { files: uploadedFiles, fields } = parseMultipartFormBuffer(
-      Buffer.from(arrayBuffer),
-      contentType
-    );
+    // Use Hono's built-in form data parsing
+    const formData = await c.req.formData();
+    const fileList = formData.getAll("files") as File[];
+    const type = formData.get("type") as string | null;
 
-    const type = fields.type;
-
-    if (!uploadedFiles || uploadedFiles.length === 0) {
+    if (!fileList || fileList.length === 0) {
       return c.json({ error: "No files provided" }, 400);
     }
 
@@ -89,22 +81,35 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
     const validFiles: UploadedFile[] = [];
     const errors = [];
 
-    for (const file of uploadedFiles) {
-      if (!allowedMimeTypes.includes(file.mimetype)) {
+    // Convert Files to UploadedFile format and validate
+    for (const file of fileList) {
+      if (!allowedMimeTypes.includes(file.type)) {
         errors.push({
-          name: file.originalname,
+          name: file.name,
           error:
             type === "audio"
               ? "Only MP3 files are supported"
               : `Invalid ${type} format. File type ${
-                  file.mimetype
+                  file.type
                 } is not allowed. Allowed types: ${allowedMimeTypes.join(
                   ", "
                 )}`,
         });
         continue;
       }
-      validFiles.push(file);
+
+      // Convert File to UploadedFile format
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      validFiles.push({
+        fieldname: "files",
+        originalname: file.name,
+        encoding: "7bit",
+        mimetype: file.type,
+        buffer,
+        size: buffer.length,
+      });
     }
 
     if (validFiles.length === 0) {

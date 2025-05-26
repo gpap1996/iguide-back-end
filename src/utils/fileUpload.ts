@@ -1,4 +1,3 @@
-import { IncomingMessage } from "http";
 import { FILE_LIMITS } from "./fileStorage";
 import { optimizeImage } from "./imageOptimization";
 import { storage, generateUniqueFilename } from "./fileStorage";
@@ -11,115 +10,6 @@ export interface UploadedFile {
   mimetype: string;
   buffer: Buffer;
   size: number;
-}
-
-// Interface for parsed form data
-export interface ParsedFormData {
-  fields: Record<string, string>;
-  files: UploadedFile[];
-}
-
-/**
- * Parses multipart form data from a buffer and content-type
- * @param buffer The request body as a buffer
- * @param contentType The content-type header
- * @returns ParsedFormData
- */
-export function parseMultipartFormBuffer(
-  buffer: Buffer,
-  contentType: string
-): ParsedFormData {
-  const fields: Record<string, string> = {};
-  const files: UploadedFile[] = [];
-  const boundary = getBoundary(contentType || "");
-
-  if (!boundary) {
-    throw new Error("No boundary found in content-type header");
-  }
-
-  const boundaryBuffer = Buffer.from(boundary);
-  const parts = splitBuffer(buffer, boundaryBuffer);
-
-  for (const part of parts) {
-    if (part.length === 0) continue;
-
-    // Find the double CRLF that separates headers from content
-    const doubleCRLF = Buffer.from("\r\n\r\n");
-    const headerEndIndex = part.indexOf(doubleCRLF);
-
-    if (headerEndIndex === -1) continue;
-
-    const headerBuffer = part.subarray(0, headerEndIndex);
-    const contentBuffer = part.subarray(headerEndIndex + 4);
-
-    // Remove trailing CRLF from content if present
-    let finalContentBuffer = contentBuffer;
-    if (
-      contentBuffer.length >= 2 &&
-      contentBuffer[contentBuffer.length - 2] === 0x0d &&
-      contentBuffer[contentBuffer.length - 1] === 0x0a
-    ) {
-      finalContentBuffer = contentBuffer.subarray(0, contentBuffer.length - 2);
-    }
-
-    const headerStr = headerBuffer.toString("utf8");
-
-    if (headerStr.includes('filename="')) {
-      // This is a file
-      const filename = headerStr.match(/filename="([^"]+)"/)?.[1];
-      const fieldname = headerStr.match(/name="([^"]+)"/)?.[1];
-      const mimetype = headerStr.match(/Content-Type: ([^\r\n]+)/)?.[1];
-
-      if (!filename || !fieldname || !mimetype) {
-        continue;
-      }
-
-      files.push({
-        fieldname,
-        originalname: filename,
-        encoding: "7bit",
-        mimetype: mimetype.trim(),
-        buffer: finalContentBuffer,
-        size: finalContentBuffer.length,
-      });
-    } else {
-      // This is a field
-      const fieldname = headerStr.match(/name="([^"]+)"/)?.[1];
-      if (fieldname) {
-        fields[fieldname] = finalContentBuffer.toString("utf8");
-      }
-    }
-  }
-
-  return { fields, files };
-}
-
-/**
- * Parses multipart form data from an incoming request (Node.js IncomingMessage)
- * @param req The incoming request
- * @returns Promise resolving to parsed form data
- */
-export async function parseMultipartForm(
-  req: IncomingMessage
-): Promise<ParsedFormData> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => {
-      chunks.push(chunk);
-    });
-    req.on("end", async () => {
-      try {
-        const buffer = Buffer.concat(chunks);
-        const contentType = req.headers["content-type"] || "";
-        resolve(parseMultipartFormBuffer(buffer, contentType as string));
-      } catch (error) {
-        reject(error);
-      }
-    });
-    req.on("error", (error) => {
-      reject(error);
-    });
-  });
 }
 
 /**
@@ -205,37 +95,4 @@ export async function processUploadedFiles(
   }
 
   return processedFiles;
-}
-
-// Helper function to extract boundary from content-type header
-function getBoundary(contentType: string): string | null {
-  const match = contentType.match(/boundary=([^;]+)/);
-  return match ? `--${match[1]}` : null;
-}
-
-// Helper function to split buffer by boundary
-function splitBuffer(buffer: Buffer, boundary: Buffer): Buffer[] {
-  const parts: Buffer[] = [];
-  let start = 0;
-  let index = 0;
-
-  while (index < buffer.length) {
-    const foundIndex = buffer.indexOf(boundary, index);
-    if (foundIndex === -1) {
-      // No more boundaries found
-      if (start < buffer.length) {
-        parts.push(buffer.subarray(start));
-      }
-      break;
-    }
-
-    if (foundIndex > start) {
-      parts.push(buffer.subarray(start, foundIndex));
-    }
-
-    start = foundIndex + boundary.length;
-    index = start;
-  }
-
-  return parts;
 }
