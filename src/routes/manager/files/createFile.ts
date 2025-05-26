@@ -68,6 +68,20 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
       return c.json({ error: "Invalid metadata format" }, 400);
     }
 
+    // Validate audio files can only have one translation
+    if (type === "audio" && metadata.translations) {
+      const translationCount = Object.keys(metadata.translations).length;
+      if (translationCount !== 1) {
+        return c.json(
+          {
+            error: "Audio files must have exactly one translation",
+            details: `Found ${translationCount} translations, but audio files require exactly 1`,
+          },
+          400
+        );
+      }
+    }
+
     const originalName = uploadedFile.originalname;
     const isImage = IMAGE_CONFIG.acceptedMimeTypes.includes(
       uploadedFile.mimetype

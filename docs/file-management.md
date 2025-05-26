@@ -20,7 +20,7 @@ FILE_LIMITS = {
   MAX_TOTAL_SIZE: 100 * 1024 * 1024, // 100MB per batch
   MAX_FILES_PER_BATCH: 50, // Maximum files in one upload
   ALLOWED_IMAGE_TYPES: ["image/jpeg", "image/png", "image/gif", "image/webp"],
-  ALLOWED_AUDIO_TYPES: ["audio/mpeg", "audio/wav", "audio/ogg", "audio/m4a"],
+  ALLOWED_AUDIO_TYPES: ["audio/mp3"],
   MAX_IMAGE_DIMENSION: 4096, // 4K resolution
   THUMBNAIL_SIZE: 300, // 300px for thumbnails
 };

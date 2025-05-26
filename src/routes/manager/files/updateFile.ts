@@ -45,12 +45,27 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
 
   // Check if file exists
   const [existingFile] = await db
-    .select({ path: files.path, thumbnailPath: files.thumbnailPath })
+    .select({
+      path: files.path,
+      thumbnailPath: files.thumbnailPath,
+      type: files.type,
+    })
     .from(files)
     .where(and(eq(files.id, fileId), eq(files.projectId, projectId)));
 
   if (!existingFile) {
     return c.json({ error: "File not found" }, 404);
+  }
+
+  // Prevent changing file type
+  if (type && type !== existingFile.type) {
+    return c.json(
+      {
+        error: "Cannot change file type",
+        details: `File type cannot be changed from ${existingFile.type} to ${type}`,
+      },
+      400
+    );
   }
 
   let metadata: Metadata | undefined;
@@ -59,6 +74,20 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
       metadata = JSON.parse(metadataStr as string);
     } catch (error) {
       return c.json({ error: "Invalid metadata format" }, 400);
+    }
+
+    // Validate audio files can only have one translation
+    if (type === "audio" && metadata?.translations) {
+      const translationCount = Object.keys(metadata.translations).length;
+      if (translationCount !== 1) {
+        return c.json(
+          {
+            error: "Audio files must have exactly one translation",
+            details: `Found ${translationCount} translations, but audio files require exactly 1`,
+          },
+          400
+        );
+      }
     }
   }
 
