@@ -32,16 +32,15 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
   const file = body.get("file");
   const type = body.get("type")?.toString();
   const metadataStr = body.get("metadata");
+  const projectId = Number(currentUser.projectId);
 
-  if (!currentUser?.projectId) {
+  if (!projectId) {
     return c.json({ error: "Project ID not found for current user" }, 400);
   }
 
   if (!fileId) {
     return c.json({ error: "File id is required" }, 400);
   }
-
-  const projectId = Number(currentUser.projectId);
 
   // Check if file exists
   const [existingFile] = await db
