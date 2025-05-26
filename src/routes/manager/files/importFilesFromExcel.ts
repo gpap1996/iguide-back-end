@@ -149,6 +149,7 @@ export const importFilesFromExcel = new Hono().post(
 
         // Track if any translations are found for this file
         let translationsFound = false;
+        let translationCount = 0;
 
         // Process each language column (title and description)
         for (const lang of availableLanguages) {
@@ -172,6 +173,7 @@ export const importFilesFromExcel = new Hono().post(
             (titleKey in row || descKey in row) &&
             (row[titleKey] !== undefined || row[descKey] !== undefined)
           ) {
+            translationCount++;
             translationsToUpdate.push({
               fileId,
               rowNumber,
@@ -189,6 +191,39 @@ export const importFilesFromExcel = new Hono().post(
           );
         }
       }
+
+      // Get file types for validation after collecting all IDs
+      const fileTypes = await db
+        .select({ id: files.id, type: files.type })
+        .from(files)
+        .where(inArray(files.id, Array.from(fileIds)));
+
+      const fileTypeMap = new Map(fileTypes.map((f) => [f.id, f.type]));
+
+      // Validate audio files have at most one translation
+      const audioFileTranslations = new Map<number, number>();
+      for (const translation of translationsToUpdate) {
+        const fileType = fileTypeMap.get(translation.fileId);
+        if (fileType === "audio") {
+          const count = audioFileTranslations.get(translation.fileId) || 0;
+          audioFileTranslations.set(translation.fileId, count + 1);
+        }
+      }
+
+      // Check for audio files with more than one translation
+      for (const [fileId, count] of audioFileTranslations.entries()) {
+        if (count > 1) {
+          const affectedRows = translationsToUpdate
+            .filter((t) => t.fileId === fileId)
+            .map((t) => t.rowNumber);
+          errors.push(
+            `Audio file (ID: ${fileId}) has ${count} translations, but audio files can have at most 1 (affects rows: ${affectedRows.join(
+              ", "
+            )})`
+          );
+        }
+      }
+
       if (errors.length > 0) {
         return c.json(
           {
@@ -249,6 +284,14 @@ export const importFilesFromExcel = new Hono().post(
       try {
         // Use a transaction to ensure all updates succeed or fail together
         const results = await db.transaction(async (tx) => {
+          // First, delete all existing translations for audio files that are being updated
+          const audioFileIds = Array.from(audioFileTranslations.keys());
+          if (audioFileIds.length > 0) {
+            await tx
+              .delete(file_translations)
+              .where(inArray(file_translations.fileId, audioFileIds));
+          }
+
           return await Promise.all(
             translationsToUpdate.map(async (translation) => {
               try {
@@ -282,7 +325,6 @@ export const importFilesFromExcel = new Hono().post(
                 } else {
                   // Insert new translation
                   return tx.insert(file_translations).values({
-                    projectId,
                     fileId: translation.fileId,
                     languageId: translation.languageId,
                     title: translation.title,
