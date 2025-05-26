@@ -6,7 +6,7 @@ import { db } from "../../../db";
 import { files } from "../../../db/schema/files";
 import { file_translations } from "../../../db/schema/file_translations";
 import { languages } from "../../../db/schema/languages";
-import { storage } from "../../../utils/fileStorage";
+import { storage, FILE_LIMITS } from "../../../utils/fileStorage";
 
 import {
   optimizeImage,
@@ -79,11 +79,11 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
     // Validate audio files can only have one translation
     if (type === "audio" && metadata?.translations) {
       const translationCount = Object.keys(metadata.translations).length;
-      if (translationCount !== 1) {
+      if (translationCount > 1) {
         return c.json(
           {
-            error: "Audio files must have exactly one translation",
-            details: `Found ${translationCount} translations, but audio files require exactly 1`,
+            error: "Audio files can have at most one translation",
+            details: `Found ${translationCount} translations, but audio files can have at most 1`,
           },
           400
         );
@@ -98,16 +98,42 @@ export const updateFile = new Hono().put("/:id", requiresManager, async (c) => {
     // Handle file update if provided
     if (file && file instanceof File) {
       const originalName = file.name;
-      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(originalName);
+      const mimetype = file.type;
+
+      // Validate file type early
+      if (existingFile.type === "audio") {
+        if (!FILE_LIMITS.ALLOWED_AUDIO_TYPES.includes(mimetype)) {
+          return c.json(
+            {
+              error: "Invalid audio format",
+              details: "Only MP3 files are supported",
+            },
+            400
+          );
+        }
+      } else if (existingFile.type === "image") {
+        if (!FILE_LIMITS.ALLOWED_IMAGE_TYPES.includes(mimetype)) {
+          return c.json(
+            {
+              error: "Invalid image format",
+              details: `File type ${mimetype} is not allowed. Allowed types: ${FILE_LIMITS.ALLOWED_IMAGE_TYPES.join(
+                ", "
+              )}`,
+            },
+            400
+          );
+        }
+      }
+
       const timestamp = Date.now();
-      const fileType = isImage ? "images" : "audio";
+      const fileType = existingFile.type === "image" ? "images" : "audio";
       const storagePath = `project-${projectId}/${fileType}/${timestamp}-${originalName}`;
 
       console.log(`Processing file update for ${originalName}`);
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      if (isImage) {
+      if (existingFile.type === "image") {
         console.log("Processing image file");
         const optimizedBuffer = await optimizeImage(buffer);
         console.log(`Uploading optimized image to ${storagePath}`);

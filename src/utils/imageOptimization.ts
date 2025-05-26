@@ -6,8 +6,8 @@ export const IMAGE_CONFIG = {
   maxWidth: 1200,
   jpegQuality: 70,
   thumbnailWidth: 100,
-  // Accepted image formats
-  acceptedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  // Use the same list as FILE_LIMITS
+  acceptedMimeTypes: FILE_LIMITS.ALLOWED_IMAGE_TYPES,
 };
 
 // Interface for image optimization options
@@ -34,6 +34,12 @@ export async function optimizeImage(
   options: ImageOptimizationOptions = {}
 ): Promise<Buffer> {
   try {
+    // Check if it's an SVG file - return as is without optimization
+    const isSvg = buffer.toString().includes("<svg");
+    if (isSvg) {
+      return buffer;
+    }
+
     // Merge default options with provided options
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
@@ -102,7 +108,15 @@ export async function generateThumbnail(
   projectId: number,
   timestamp?: number
 ): Promise<string> {
-  const extension = path.extname(originalName);
+  const extension = path.extname(originalName).toLowerCase();
+
+  // For SVG files, return the original file path as the thumbnail
+  if (extension === ".svg") {
+    const fileTimestamp = timestamp || Date.now();
+    const storagePath = `project-${projectId}/images/${fileTimestamp}-${originalName}`;
+    return storagePath; // Return the original file path for SVGs
+  }
+
   const baseName = path.basename(originalName, extension);
   const fileTimestamp = timestamp || Date.now();
   const thumbnailName = `thumb_${fileTimestamp}_${baseName}${extension}`;

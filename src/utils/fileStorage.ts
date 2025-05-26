@@ -10,8 +10,18 @@ export const FILE_LIMITS = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   MAX_TOTAL_SIZE: 100 * 1024 * 1024, // 100MB per batch
   MAX_FILES_PER_BATCH: 50,
-  ALLOWED_IMAGE_TYPES: ["image/jpeg", "image/png", "image/gif", "image/webp"],
-  ALLOWED_AUDIO_TYPES: ["audio/mp3"],
+  ALLOWED_IMAGE_TYPES: [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "image/tiff",
+    "image/bmp",
+    "image/ico",
+    "image/heic",
+  ],
+  ALLOWED_AUDIO_TYPES: ["audio/mpeg"],
 };
 
 // Interface for storage provider
@@ -137,15 +147,20 @@ export class FirebaseStorage implements StorageProvider {
     const extension = path.extname(filePath).toLowerCase();
 
     const contentTypeMap: Record<string, string> = {
+      // Image types from FILE_LIMITS.ALLOWED_IMAGE_TYPES
       ".jpg": "image/jpeg",
       ".jpeg": "image/jpeg",
       ".png": "image/png",
       ".gif": "image/gif",
       ".webp": "image/webp",
+      ".svg": "image/svg+xml",
+      ".tiff": "image/tiff",
+      ".tif": "image/tiff",
+      ".bmp": "image/bmp",
+      ".ico": "image/ico",
+      ".heic": "image/heic",
+      // Audio types from FILE_LIMITS.ALLOWED_AUDIO_TYPES
       ".mp3": "audio/mpeg",
-      ".wav": "audio/wav",
-      ".ogg": "audio/ogg",
-      ".m4a": "audio/mp4",
     };
 
     return contentTypeMap[extension] || "application/octet-stream";

@@ -11,7 +11,7 @@ import {
   IMAGE_CONFIG,
 } from "../../../utils/imageOptimization";
 import { parseMultipartFormBuffer } from "../../../utils/fileUpload";
-import { storage } from "../../../utils/fileStorage";
+import { storage, FILE_LIMITS } from "../../../utils/fileStorage";
 
 interface Translation {
   title: string;
@@ -61,6 +61,33 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
       return c.json({ error: "No metadata provided" }, 400);
     }
 
+    // Validate file type early
+    if (type === "audio") {
+      if (!FILE_LIMITS.ALLOWED_AUDIO_TYPES.includes(uploadedFile.mimetype)) {
+        return c.json(
+          {
+            error: "Invalid audio format",
+            details: `Only MP3 files are supported. Received: ${uploadedFile.mimetype}`,
+          },
+          400
+        );
+      }
+    } else if (type === "image") {
+      if (!FILE_LIMITS.ALLOWED_IMAGE_TYPES.includes(uploadedFile.mimetype)) {
+        return c.json(
+          {
+            error: "Invalid image format",
+            details: `File type ${
+              uploadedFile.mimetype
+            } is not allowed. Allowed types: ${FILE_LIMITS.ALLOWED_IMAGE_TYPES.join(
+              ", "
+            )}`,
+          },
+          400
+        );
+      }
+    }
+
     let metadata: Metadata;
     try {
       metadata = JSON.parse(metadataStr);
@@ -71,11 +98,11 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
     // Validate audio files can only have one translation
     if (type === "audio" && metadata.translations) {
       const translationCount = Object.keys(metadata.translations).length;
-      if (translationCount !== 1) {
+      if (translationCount > 1) {
         return c.json(
           {
-            error: "Audio files must have exactly one translation",
-            details: `Found ${translationCount} translations, but audio files require exactly 1`,
+            error: "Audio files can have at most one translation",
+            details: `Found ${translationCount} translations, but audio files can have at most 1`,
           },
           400
         );

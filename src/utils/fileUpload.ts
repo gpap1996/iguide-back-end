@@ -134,6 +134,23 @@ export async function processUploadedFiles(
 ): Promise<string[]> {
   const processedFiles: string[] = [];
 
+  // Check batch size limits
+  if (files.length > FILE_LIMITS.MAX_FILES_PER_BATCH) {
+    throw new Error(
+      `Number of files (${files.length}) exceeds maximum allowed (${FILE_LIMITS.MAX_FILES_PER_BATCH})`
+    );
+  }
+
+  let totalSize = 0;
+  for (const file of files) {
+    totalSize += file.size;
+    if (totalSize > FILE_LIMITS.MAX_TOTAL_SIZE) {
+      throw new Error(
+        `Total batch size (${totalSize} bytes) exceeds maximum allowed (${FILE_LIMITS.MAX_TOTAL_SIZE} bytes)`
+      );
+    }
+  }
+
   for (const file of files) {
     try {
       // Validate file size
@@ -141,6 +158,21 @@ export async function processUploadedFiles(
         throw new Error(
           `File ${file.originalname} exceeds maximum size of ${FILE_LIMITS.MAX_FILE_SIZE} bytes`
         );
+      }
+
+      // Validate file type
+      if (file.mimetype.startsWith("image/")) {
+        if (!FILE_LIMITS.ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
+          throw new Error(`Unsupported image type: ${file.mimetype}`);
+        }
+      } else if (file.mimetype.startsWith("audio/")) {
+        if (!FILE_LIMITS.ALLOWED_AUDIO_TYPES.includes(file.mimetype)) {
+          throw new Error(
+            `Only MP3 audio files are supported. Received: ${file.mimetype}`
+          );
+        }
+      } else {
+        throw new Error(`Unsupported file type: ${file.mimetype}`);
       }
 
       // Generate unique filename
@@ -155,7 +187,7 @@ export async function processUploadedFiles(
         processedBuffer = await optimizeImage(file.buffer);
         contentType = file.mimetype;
       } else {
-        // Use original buffer for non-image files
+        // Use original buffer for audio files
         processedBuffer = file.buffer;
         contentType = file.mimetype;
       }

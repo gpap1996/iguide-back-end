@@ -13,6 +13,7 @@ import {
 } from "../../../utils/fileUpload";
 import pLimit from "p-limit";
 import { storage } from "../../../utils/fileStorage";
+import { FILE_LIMITS } from "../../../utils/fileStorage";
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -82,8 +83,8 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
 
     const allowedMimeTypes =
       type === "image"
-        ? IMAGE_CONFIG.acceptedMimeTypes
-        : ["audio/mp3", "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4"];
+        ? FILE_LIMITS.ALLOWED_IMAGE_TYPES
+        : FILE_LIMITS.ALLOWED_AUDIO_TYPES;
 
     const validFiles: UploadedFile[] = [];
     const errors = [];
@@ -92,11 +93,28 @@ export const createFiles = new Hono().post("/", requiresManager, async (c) => {
       if (!allowedMimeTypes.includes(file.mimetype)) {
         errors.push({
           name: file.originalname,
-          error: `Invalid ${type} format. File type ${file.mimetype} is not allowed.`,
+          error:
+            type === "audio"
+              ? "Only MP3 files are supported"
+              : `Invalid ${type} format. File type ${
+                  file.mimetype
+                } is not allowed. Allowed types: ${allowedMimeTypes.join(
+                  ", "
+                )}`,
         });
         continue;
       }
       validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) {
+      return c.json(
+        {
+          error: "No valid files to process",
+          details: errors,
+        },
+        400
+      );
     }
 
     const concurrencyLimit = pLimit(1);
