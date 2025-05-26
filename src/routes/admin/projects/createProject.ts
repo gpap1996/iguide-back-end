@@ -61,7 +61,7 @@ export const createProject = new Hono().post(
 
       // If a file was uploaded and we used a temporary path, rename/move it now that we have the project ID.
       if (imageUrl && result && result.id && tempFileName) {
-        const finalFileName = `projects-${result.id}/${Date.now()}.${file?.name
+        const finalFileName = `project-${result.id}/${Date.now()}.${file?.name
           .split(".")
           .pop()}`;
         const oldFileRef = bucket.file(tempFileName); // Assuming tempFileName is accessible here

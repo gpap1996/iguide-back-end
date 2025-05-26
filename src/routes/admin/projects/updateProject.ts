@@ -50,7 +50,7 @@ export const updateProject = new Hono().put(
               ?.split("?")[0];
             // We need a more robust way to get the GCS object name from the signed URL.
             // Assuming URL is projects/{projectId}/{filename}
-            const gcsObjectName = `projects-${id}/${decodeURIComponent(
+            const gcsObjectName = `project-${id}/${decodeURIComponent(
               oldFileName || ""
             )}`;
             if (oldFileName)
@@ -69,7 +69,7 @@ export const updateProject = new Hono().put(
         }
 
         const fileExtension = file.name.split(".").pop();
-        const fileName = `projects-${id}/${Date.now()}.${fileExtension}`;
+        const fileName = `project-${id}/${Date.now()}.${fileExtension}`;
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const fileRef = bucket.file(fileName);
@@ -88,7 +88,7 @@ export const updateProject = new Hono().put(
               .split("/")
               .pop()
               ?.split("?")[0];
-            const gcsObjectName = `projects-${id}/${decodeURIComponent(
+            const gcsObjectName = `project-${id}/${decodeURIComponent(
               oldFileName || ""
             )}`;
             if (oldFileName)
