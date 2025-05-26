@@ -21,7 +21,6 @@ interface Metadata {
   translations?: Record<string, Translation>;
 }
 
-// Create files endpoint
 export const createFile = new Hono().post("/", requiresManager, async (c) => {
   const currentUser = c.get("currentUser");
 
@@ -32,34 +31,42 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
   const projectId = Number(currentUser.projectId);
 
   try {
-    console.log("Starting file upload process");
-    // Use Hono's built-in form data parsing
     const formData = await c.req.formData();
     const uploadedFile = formData.get("file") as File | null;
     const type = formData.get("type") as string | null;
     const metadataStr = formData.get("metadata") as string | null;
 
-    console.log("Form data parsed successfully");
-
+    // Validations for the form data
     if (!uploadedFile) {
-      return c.json({ error: "No file provided" }, 400);
+      return c.json(
+        {
+          error: "No file provided",
+          details: "File is required. Upload a file to continue.",
+        },
+        400
+      );
     }
 
-    console.log(`Processing file: ${uploadedFile.name}`);
-
     if (!type) {
-      return c.json({ error: "No type provided" }, 400);
+      return c.json(
+        {
+          error: "No type provided",
+          details: "Type is required. Select a file type to continue.",
+        },
+        400
+      );
     }
 
     if (!metadataStr) {
-      return c.json({ error: "No metadata provided" }, 400);
+      return c.json(
+        {
+          error: "No metadata provided",
+          details: "Metadata is required. Add metadata to continue.",
+        },
+        400
+      );
     }
 
-    // Convert File to buffer
-    const arrayBuffer = await uploadedFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Validate file type early
     if (type === "audio") {
       if (!FILE_LIMITS.ALLOWED_AUDIO_TYPES.includes(uploadedFile.type)) {
         return c.json(
@@ -90,10 +97,15 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
     try {
       metadata = JSON.parse(metadataStr);
     } catch (error) {
-      return c.json({ error: "Invalid metadata format" }, 400);
+      return c.json(
+        {
+          error: "Invalid metadata format",
+          details: "Metadata must be a valid JSON object",
+        },
+        400
+      );
     }
 
-    // Validate audio files can only have one translation
     if (type === "audio" && metadata.translations) {
       const translationCount = Object.keys(metadata.translations).length;
       if (translationCount > 1) {
@@ -107,6 +119,12 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
       }
     }
 
+    // Validation end
+
+    // Convert File to buffer
+    const arrayBuffer = await uploadedFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     const originalName = uploadedFile.name;
     const isImage = IMAGE_CONFIG.acceptedMimeTypes.includes(uploadedFile.type);
 
@@ -118,7 +136,6 @@ export const createFile = new Hono().post("/", requiresManager, async (c) => {
       const timestamp = Date.now();
 
       if (isImage) {
-        console.log("Processing image file");
         const optimizedBuffer = await optimizeImage(buffer);
         const storagePath = `project-${projectId}/images/${timestamp}-${originalName}`;
 
