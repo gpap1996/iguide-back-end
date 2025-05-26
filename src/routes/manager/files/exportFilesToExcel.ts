@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../../../db";
 import { requiresManager } from "../../../middleware/requiresManager";
-import * as XLSX from "xlsx"; // SheetJS library for Excel file generation
+import ExcelJS from "exceljs";
 
 export const exportFilesToExcel = new Hono().get(
   "/",
@@ -80,7 +80,6 @@ export const exportFilesToExcel = new Hono().get(
 
         // Fill in the translations where they exist
         file.translations.forEach((translation) => {
-          // Access locale through the language relation
           const locale = translation.language?.locale;
           if (locale) {
             if (translation.title) {
@@ -97,7 +96,7 @@ export const exportFilesToExcel = new Hono().get(
 
       // Create headers with more descriptive names for better readability
       const headers: Record<string, string> = {
-        id: "id", // Keep these column names consistent for import
+        id: "id",
         type: "type",
         name: "name",
       };
@@ -108,67 +107,89 @@ export const exportFilesToExcel = new Hono().get(
         headers[`description_${lang.locale}`] = `description_${lang.locale}`;
       });
 
-      // Rename keys in excelData to use the friendly headers
-      const renamedData = excelData.map((row) => {
-        const newRow: Record<string, any> = {};
-        for (const key in row) {
-          newRow[headers[key] || key] = row[key];
-        }
-        return newRow;
-      });
+      // Create a new workbook and worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Files");
 
-      // Create a workbook and worksheet
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(renamedData, {
-        header: Object.values(headers),
-      });
+      // Add headers
+      const headerRow = worksheet.addRow(Object.values(headers));
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFECECEC" },
+      };
 
-      // Auto-size columns for better readability
-      const colWidths = [];
-      for (const key of Object.values(headers)) {
-        let maxLength = key.length;
-        for (const row of renamedData) {
-          const cellValue = row[key]?.toString() || "";
-          if (cellValue.length > maxLength) {
-            maxLength = cellValue.length;
-          }
-        }
-        colWidths.push({ wch: Math.min(maxLength + 2, 50) }); // Limit width to 50 chars
-      }
-      worksheet["!cols"] = colWidths; // Improve cell formatting
-      const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
-      for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
-          const cell = worksheet[cell_address];
-          if (!cell) continue;
+      // Add data rows
+      excelData.forEach((row) => {
+        const dataRow = worksheet.addRow(Object.values(row));
 
-          // Set header row formatting
-          if (R === 0) {
-            cell.s = {
-              font: { bold: true },
-              fill: { fgColor: { rgb: "ECECEC" } },
-            };
-          }
-
-          // Lock the id, type, and name columns (first 3 columns) by adding gray background
-          if (C < 3 && R > 0) {
-            cell.s = {
-              fill: { fgColor: { rgb: "F2F2F2" } },
+        // Lock the first three columns (ID, Type, Name)
+        for (let i = 1; i <= 3; i++) {
+          const cell = dataRow.getCell(i);
+          if (cell) {
+            cell.protection = { locked: true };
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFF2F2F2" },
             };
           }
         }
+
+        // Explicitly unlock all other cells
+        for (let i = 4; i <= Object.keys(headers).length; i++) {
+          const cell = dataRow.getCell(i);
+          if (cell) {
+            cell.protection = { locked: false };
+          }
+        }
+      });
+
+      // Auto-size columns
+      const columnCount = Object.keys(headers).length;
+      for (let i = 1; i <= columnCount; i++) {
+        const column = worksheet.getColumn(i);
+        if (!column) continue;
+
+        let maxLength = 0;
+        // Get header length
+        const headerCell = worksheet.getCell(1, i);
+        if (headerCell && headerCell.value) {
+          maxLength = String(headerCell.value).length;
+        }
+
+        // Get max length from data
+        for (let row = 2; row <= excelData.length + 1; row++) {
+          const cell = worksheet.getCell(row, i);
+          if (cell && cell.value) {
+            const value = String(cell.value);
+            maxLength = Math.max(maxLength, value.length);
+          }
+        }
+
+        column.width = Math.min(maxLength + 2, 50);
       }
 
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Files");
-
-      // Generate Excel file properly with Office Open XML format
-      const excelBuffer = XLSX.write(workbook, {
-        type: "buffer",
-        bookType: "xlsx",
-        bookSST: true, // Use shared string table for better compatibility
-        compression: true,
+      // Enable worksheet protection with specific permissions
+      worksheet.protect("", {
+        selectLockedCells: true,
+        selectUnlockedCells: true,
+        formatCells: false,
+        formatColumns: false,
+        formatRows: false,
+        insertColumns: false,
+        insertRows: false,
+        insertHyperlinks: false,
+        deleteColumns: false,
+        deleteRows: false,
+        sort: false,
+        autoFilter: false,
+        pivotTables: false,
       });
+
+      // Generate Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
 
       // Set headers for file download with proper encoding for all browsers
       const name = "files-export.xlsx";
@@ -182,14 +203,14 @@ export const exportFilesToExcel = new Hono().get(
         "Content-Type",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       );
-      c.header("Content-Length", excelBuffer.length.toString());
+      c.header("Content-Length", Buffer.byteLength(buffer).toString());
 
       // Add cache control to prevent caching issues
       c.header("Cache-Control", "no-cache, no-store, must-revalidate");
       c.header("Pragma", "no-cache");
       c.header("Expires", "0");
 
-      return c.body(excelBuffer);
+      return c.body(buffer);
     } catch (error) {
       console.error("Error exporting files to Excel:", error);
       return c.json(

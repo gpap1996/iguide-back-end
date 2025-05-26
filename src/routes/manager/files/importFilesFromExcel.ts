@@ -3,7 +3,7 @@ import { db } from "../../../db";
 import { file_translations } from "../../../db/schema/file_translations";
 import { files } from "../../../db/schema/files";
 import { requiresManager } from "../../../middleware/requiresManager";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { eq, and, inArray } from "drizzle-orm";
 
 // Define interface for translation updates
@@ -50,16 +50,25 @@ export const importFilesFromExcel = new Hono().post(
       // Convert File to ArrayBuffer
       const arrayBuffer = await excelFile.arrayBuffer();
 
-      // Parse Excel file
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
+      // Parse Excel file using ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
 
-      // Convert worksheet to JSON
-      const data = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
-
-      if (data.length === 0) {
+      const worksheet = workbook.getWorksheet(1); // Get first worksheet
+      if (!worksheet) {
         return c.json({ error: "Excel file is empty" }, 400);
+      }
+
+      // Get headers from first row
+      const headers: string[] = [];
+      worksheet.getRow(1).eachCell((cell) => {
+        if (cell.value) {
+          headers.push(String(cell.value));
+        }
+      });
+
+      if (headers.length === 0) {
+        return c.json({ error: "No headers found in Excel file" }, 400);
       }
 
       // Get available languages from database
@@ -79,40 +88,36 @@ export const importFilesFromExcel = new Hono().post(
       const localeToLanguageIdMap = new Map<string, number>();
       availableLanguages.forEach((lang) => {
         localeToLanguageIdMap.set(lang.locale, lang.id);
-      }); // Check for invalid columns in the spreadsheet
-      // First row's keys represent all columns
-      if (data.length > 0) {
-        const allKeys = Object.keys(data[0]);
+      });
 
-        // Check for columns that might be typos or mistakes
-        const unexpectedColumns = allKeys.filter((key) => {
-          // Skip ID, Type, Name columns which are protected
-          if (key === "id" || key === "type" || key === "name") return false;
+      // Check for invalid columns in the spreadsheet
+      const unexpectedColumns = headers.filter((key) => {
+        // Skip ID, Type, Name columns which are protected
+        if (key === "id" || key === "type" || key === "name") return false;
 
-          // Check if translation column follows correct pattern: title_XX or description_XX
-          if (!key.startsWith("title_") && !key.startsWith("description_"))
-            return true;
+        // Check if translation column follows correct pattern: title_XX or description_XX
+        if (!key.startsWith("title_") && !key.startsWith("description_"))
+          return true;
 
-          // Get locale part (after underscore)
-          const locale = key.split("_")[1];
+        // Get locale part (after underscore)
+        const locale = key.split("_")[1];
 
-          // Check if this locale exists in our database
-          return !availableLanguages.some((lang) => lang.locale === locale);
-        });
+        // Check if this locale exists in our database
+        return !availableLanguages.some((lang) => lang.locale === locale);
+      });
 
-        if (unexpectedColumns.length > 0) {
-          return c.json(
-            {
-              error: "Invalid column names detected",
-              details:
-                `The following columns are not recognized: ${unexpectedColumns.join(
-                  ", "
-                )}. ` +
-                `Make sure to use the export format without modifications.`,
-            },
-            400
-          );
-        }
+      if (unexpectedColumns.length > 0) {
+        return c.json(
+          {
+            error: "Invalid column names detected",
+            details:
+              `The following columns are not recognized: ${unexpectedColumns.join(
+                ", "
+              )}. ` +
+              `Make sure to use the export format without modifications.`,
+          },
+          400
+        );
       }
 
       // Parse the translations to update
@@ -120,25 +125,27 @@ export const importFilesFromExcel = new Hono().post(
       const errors: string[] = [];
       const fileIds = new Set<number>();
 
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-        const rowNumber = i + 2; // +2 because Excel starts at 1 and first row is header
+      // Process each row (skip header row)
+      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
+        const rowData: Record<string, any> = {};
 
-        // Extract fileId from ID column (handle both "id" and "ID (do not edit)" formats)
-        const idField =
-          row["id"] !== undefined
-            ? row["id"]
-            : row["ID (do not edit)"] !== undefined
-            ? row["ID (do not edit)"]
-            : null;
+        // Get cell values
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber - 1];
+          if (header) {
+            rowData[header] = cell.value;
+          }
+        });
 
-        if (idField === null) {
+        // Extract fileId from ID column
+        const idField = rowData["id"];
+        if (idField === undefined) {
           errors.push(`Row ${rowNumber}: Missing ID column`);
           continue;
         }
 
         const fileId = parseInt(String(idField), 10);
-
         if (isNaN(fileId)) {
           errors.push(`Row ${rowNumber}: Invalid file ID: ${idField}`);
           continue;
@@ -156,30 +163,18 @@ export const importFilesFromExcel = new Hono().post(
           const titleKey = `title_${lang.locale}`;
           const descKey = `description_${lang.locale}`;
 
-          // Check if there are any unrecognized title_* or description_* columns that might be typos
-          for (const key of Object.keys(row)) {
-            if (
-              (key.startsWith("title_") || key.startsWith("description_")) &&
-              !availableLanguages.some((l) => key.endsWith(l.locale))
-            ) {
-              errors.push(
-                `Row ${rowNumber}: Column "${key}" contains an invalid locale format`
-              );
-            }
-          }
-
           // Only add to updates if at least one field has valid content
           if (
-            (titleKey in row || descKey in row) &&
-            (row[titleKey] !== undefined || row[descKey] !== undefined)
+            (titleKey in rowData || descKey in rowData) &&
+            (rowData[titleKey] !== undefined || rowData[descKey] !== undefined)
           ) {
             translationCount++;
             translationsToUpdate.push({
               fileId,
               rowNumber,
               languageId: lang.id,
-              title: row[titleKey] || null,
-              description: row[descKey] || null,
+              title: rowData[titleKey] || null,
+              description: rowData[descKey] || null,
             });
             translationsFound = true;
           }
@@ -201,23 +196,29 @@ export const importFilesFromExcel = new Hono().post(
       const fileTypeMap = new Map(fileTypes.map((f) => [f.id, f.type]));
 
       // Validate audio files have at most one translation
-      const audioFileTranslations = new Map<number, number>();
+      const audioFileTranslations = new Map<number, Set<number>>();
       for (const translation of translationsToUpdate) {
         const fileType = fileTypeMap.get(translation.fileId);
         if (fileType === "audio") {
-          const count = audioFileTranslations.get(translation.fileId) || 0;
-          audioFileTranslations.set(translation.fileId, count + 1);
+          if (!audioFileTranslations.has(translation.fileId)) {
+            audioFileTranslations.set(translation.fileId, new Set());
+          }
+          audioFileTranslations
+            .get(translation.fileId)
+            ?.add(translation.languageId);
         }
       }
 
       // Check for audio files with more than one translation
-      for (const [fileId, count] of audioFileTranslations.entries()) {
-        if (count > 1) {
+      for (const [fileId, languageIds] of audioFileTranslations.entries()) {
+        if (languageIds.size > 1) {
           const affectedRows = translationsToUpdate
             .filter((t) => t.fileId === fileId)
             .map((t) => t.rowNumber);
           errors.push(
-            `Audio file (ID: ${fileId}) has ${count} translations, but audio files can have at most 1 (affects rows: ${affectedRows.join(
+            `Audio file (ID: ${fileId}) has ${
+              languageIds.size
+            } translations, but audio files can have at most 1 (affects rows: ${affectedRows.join(
               ", "
             )})`
           );
@@ -352,7 +353,9 @@ export const importFilesFromExcel = new Hono().post(
           },
           500
         );
-      } // Count updates by file ID for more detailed reporting
+      }
+
+      // Count updates by file ID for more detailed reporting
       const fileUpdateCounts = new Map<number, number>();
       for (const translation of translationsToUpdate) {
         const count = fileUpdateCounts.get(translation.fileId) || 0;

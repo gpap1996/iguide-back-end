@@ -98,6 +98,31 @@ FILE_LIMITS = {
   - Reports success/failure for each file
   - Maintains data consistency
 
+### 6. Excel Export/Import
+
+- **Export to Excel** (`/files/export-excel` GET endpoint)
+
+  - Exports all files with their translations
+  - Read-only columns (cannot be edited):
+    - ID
+    - Type
+    - Name
+  - Editable columns:
+    - Title translations for each language
+    - Description translations for each language
+  - Features:
+    - Auto-sized columns for better readability
+    - Gray background and text for read-only columns
+    - Bold headers
+    - Visual indication of read-only status
+
+- **Import from Excel** (`/files/import-excel` POST endpoint)
+  - Imports translations from Excel file
+  - Validates file format and content
+  - Supports updating existing translations
+  - Handles audio file restrictions (max 1 translation)
+  - Reports detailed success/failure information
+
 ## API Endpoints
 
 ### 1. File Upload
@@ -238,6 +263,24 @@ Response:
     "totalFailed": 1
   }
 }
+```
+
+### 4. Excel Export/Import
+
+#### Export to Excel
+
+```http
+GET /files/export-excel
+```
+
+#### Import from Excel
+
+```http
+POST /files/import-excel
+Content-Type: multipart/form-data
+
+Fields:
+- file: The Excel file to import
 ```
 
 ## Error Handling
