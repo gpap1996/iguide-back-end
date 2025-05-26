@@ -9,9 +9,6 @@
     "strict": true,
     "useUnknownInCatchVariables": false,
     "skipLibCheck": true,
-    "baseUrl": "./",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "baseUrl": "./"
   }
 }

@@ -17,6 +17,7 @@ export const requiresAuth = createMiddleware(async (c, next) => {
     c.set("currentUser", {
       user_id: decoded.uid,
       email: decoded.email!,
+      projectId: decoded.projectId!,
     });
 
     await next();
