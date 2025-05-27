@@ -6,3 +6,5 @@ export * from "./areas";
 export * from "./area_translations";
 export * from "./area_files";
 export * from "./projects";
+export * from "./external_files";
+export * from "./external_file_translations";

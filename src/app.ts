@@ -9,7 +9,7 @@ import { fileRoutes } from "./routes/manager/files";
 import { areaRoutes } from "./routes/manager/areas";
 import { projectRoutes } from "./routes/admin/projects";
 import { userRoutes } from "./routes/admin/users";
-
+import { externalFileRoutes } from "./routes/manager/external_files";
 const app = new Hono();
 
 app.get("/", (c) => c.text("Hono!"));
@@ -28,7 +28,8 @@ app
   .route("/files", fileRoutes)
   .route("/areas", areaRoutes)
   .route("/projects", projectRoutes)
-  .route("/users", userRoutes);
+  .route("/users", userRoutes)
+  .route("/external-files", externalFileRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

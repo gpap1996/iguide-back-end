@@ -7,7 +7,7 @@ export const external_file_translations = pgTable(
   "external_file_translations",
   {
     id: serial("id").primaryKey(),
-    fileId: integer("file_id")
+    externalFileId: integer("external_file_id")
       .notNull()
       .references(() => external_files.id, { onDelete: "cascade" }),
     languageId: integer("language_id")
@@ -24,7 +24,7 @@ export const externalFilesTranslationsRelations = relations(
   external_file_translations,
   ({ one }) => ({
     files: one(external_files, {
-      fields: [external_file_translations.fileId],
+      fields: [external_file_translations.externalFileId],
       references: [external_files.id],
     }),
     language: one(languages, {
