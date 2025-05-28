@@ -11,8 +11,9 @@ import { zValidator } from "@hono/zod-validator";
 import { eq, and } from "drizzle-orm";
 
 const updateExternalFileSchema = z.object({
+  name: z.string({ required_error: "Name is required" }),
   type: z.enum(["model", "video"], { required_error: "Type is required" }),
-  url: z.string({ required_error: "URL is required" }).url(),
+  url: z.string({ required_error: "URL is required" }),
   translations: z
     .record(
       z.string(), // Language code as the key

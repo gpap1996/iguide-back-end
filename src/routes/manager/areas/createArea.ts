@@ -9,6 +9,8 @@ import {
   area_translations,
   files,
   area_files,
+  external_files,
+  area_external_files,
 } from "../../../db/schema";
 import { and, eq } from "drizzle-orm";
 
@@ -17,6 +19,8 @@ const schema = z.object({
   weight: z.number().optional(),
   images: z.array(z.number()).optional(),
   audio: z.array(z.number()).optional(),
+  videos: z.array(z.number()).optional(),
+  models: z.array(z.number()).optional(),
   translations: z
     .record(
       z.string(), // Language code as the key
@@ -131,7 +135,49 @@ export const createArea = new Hono().post(
           await Promise.all(audioPromises);
         }
 
-        return insertedArea;
+        // 5. Handle videos
+        if (area.videos && area.videos.length > 0) {
+          const videoPromises = area.videos.map(async (fileId) => {
+            const [foundFile] = await db
+              .select({
+                id: external_files.id,
+              })
+              .from(external_files)
+              .where(eq(external_files.id, fileId));
+
+            if (!foundFile) {
+              throw new Error(`External file not found for id: ${fileId}`);
+            }
+
+            return trx.insert(area_external_files).values({
+              areaId: insertedArea.id,
+              externalFileId: foundFile.id,
+            });
+          });
+          await Promise.all(videoPromises);
+        }
+
+        // 6. Handle models
+        if (area.models && area.models.length > 0) {
+          const modelPromises = area.models.map(async (fileId) => {
+            const [foundFile] = await db
+              .select({
+                id: external_files.id,
+              })
+              .from(external_files)
+              .where(eq(external_files.id, fileId));
+
+            if (!foundFile) {
+              throw new Error(`External file not found for id: ${fileId}`);
+            }
+
+            return trx.insert(area_external_files).values({
+              areaId: insertedArea.id,
+              externalFileId: foundFile.id,
+            });
+          });
+          await Promise.all(modelPromises);
+        }
       });
 
       return c.json({

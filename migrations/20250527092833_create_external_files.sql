@@ -2,6 +2,7 @@
 -- Create the 'external_files' table
 CREATE TABLE IF NOT EXISTS external_files (
     id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
     type TEXT NOT NULL,
     url TEXT NOT NULL,
     project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE NOT NULL,

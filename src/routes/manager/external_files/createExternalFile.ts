@@ -11,8 +11,9 @@ import {
 import { eq } from "drizzle-orm";
 
 const createExternalFileSchema = z.object({
+  name: z.string({ required_error: "Name is required" }),
   type: z.enum(["model", "video"], { required_error: "Type is required" }),
-  url: z.string({ required_error: "URL is required" }).url(),
+  url: z.string({ required_error: "URL is required" }),
   translations: z
     .record(
       z.string(), // Language code as the key
@@ -44,21 +45,22 @@ export const createExternalFile = new Hono().post(
       );
     }
 
-    const { type, url, translations } = externalFile;
+    const { type, url, translations, name } = externalFile;
 
     try {
       const result = await db.transaction(async (trx) => {
         // 1. Insert the external file into the external_files table
-        const [externalFile] = await trx
+        const [createdFile] = await trx
           .insert(external_files)
           .values({
+            name,
             url,
             type,
             projectId,
           })
           .returning();
 
-        if (!externalFile) {
+        if (!createdFile) {
           throw new Error("Failed to create external file");
         }
 
@@ -81,7 +83,7 @@ export const createExternalFile = new Hono().post(
               }
 
               return trx.insert(external_file_translations).values({
-                externalFileId: externalFile.id,
+                externalFileId: createdFile.id,
                 languageId: language.id,
                 title: translation.title,
                 description: translation.description,
@@ -91,7 +93,7 @@ export const createExternalFile = new Hono().post(
           await Promise.all(translationPromises);
         }
 
-        return externalFile;
+        return createdFile;
       });
 
       return c.json(

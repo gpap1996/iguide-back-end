@@ -50,6 +50,19 @@ export const getSingleArea = new Hono().get(
             },
           },
         },
+        area_external_files: {
+          columns: {
+            externalFileId: true,
+          },
+          with: {
+            externalFiles: {
+              columns: {
+                id: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -57,7 +70,7 @@ export const getSingleArea = new Hono().get(
       return c.json({ area: null });
     }
 
-    const { area_files, ...areaData } = result;
+    const { area_files, area_external_files, ...areaData } = result;
 
     const area = {
       ...areaData,
@@ -67,6 +80,12 @@ export const getSingleArea = new Hono().get(
       audio: area_files
         .filter((m) => m.files.type === "audio")
         .map((m) => m.fileId),
+      videos: area_external_files
+        .filter((m) => m.externalFiles.type === "video")
+        .map((m) => m.externalFileId),
+      models: area_external_files
+        .filter((m) => m.externalFiles.type === "model")
+        .map((m) => m.externalFileId),
     };
 
     return c.json({ area });

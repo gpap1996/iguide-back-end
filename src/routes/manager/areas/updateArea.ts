@@ -9,6 +9,8 @@ import {
   area_translations,
   files,
   area_files,
+  external_files,
+  area_external_files,
 } from "../../../db/schema";
 import { and, eq } from "drizzle-orm";
 
@@ -17,6 +19,8 @@ const schema = z.object({
   weight: z.number().optional(),
   images: z.array(z.number()).optional(),
   audio: z.array(z.number()).optional(),
+  videos: z.array(z.number()).optional(),
+  models: z.array(z.number()).optional(),
   translations: z
     .record(
       z.string(), // Language code as the key
@@ -114,6 +118,9 @@ export const updateArea = new Hono().put(
         ) {
           // Delete existing file associations
           await trx.delete(area_files).where(eq(area_files.areaId, areaId));
+          await trx
+            .delete(area_external_files)
+            .where(eq(area_external_files.areaId, areaId));
 
           // Handle image files
           if (areaData.images && areaData.images.length > 0) {
@@ -157,6 +164,50 @@ export const updateArea = new Hono().put(
               });
             });
             await Promise.all(audioPromises);
+          }
+
+          // Handle video files
+          if (areaData.videos && areaData.videos.length > 0) {
+            const videoPromises = areaData.videos.map(async (fileId) => {
+              const [foundFile] = await trx
+                .select({
+                  id: external_files.id,
+                })
+                .from(external_files)
+                .where(eq(external_files.id, fileId));
+
+              if (!foundFile) {
+                throw new Error(`Video file not found for id: ${fileId}`);
+              }
+
+              return trx.insert(area_external_files).values({
+                areaId: updatedArea.id,
+                externalFileId: foundFile.id,
+              });
+            });
+            await Promise.all(videoPromises);
+          }
+
+          // Handle model files
+          if (areaData.models && areaData.models.length > 0) {
+            const modelPromises = areaData.models.map(async (fileId) => {
+              const [foundFile] = await trx
+                .select({
+                  id: external_files.id,
+                })
+                .from(external_files)
+                .where(eq(external_files.id, fileId));
+
+              if (!foundFile) {
+                throw new Error(`Model file not found for id: ${fileId}`);
+              }
+
+              return trx.insert(area_external_files).values({
+                areaId: updatedArea.id,
+                externalFileId: foundFile.id,
+              });
+            });
+            await Promise.all(modelPromises);
           }
         }
 

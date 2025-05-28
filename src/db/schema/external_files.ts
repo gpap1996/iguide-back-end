@@ -4,6 +4,7 @@ import { relations } from "drizzle-orm";
 import { projects } from "./projects";
 
 export const external_files = pgTable("external_files", {
+  name: text("name").notNull(),
   id: serial("id").primaryKey(),
   type: text("type").notNull(),
   url: text("url").notNull(),
